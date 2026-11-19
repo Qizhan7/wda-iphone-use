@@ -206,7 +206,7 @@ xcodebuild build-for-testing \
 
 ```bash
 cp config.example.env .env
-# 编辑 .env，填入你的设备 UDID 和 Tailscale IP
+# 编辑 .env，填入你的设备 UDID 和 Bundle ID。只在家里同一个 WiFi 下用，Tailscale IP 可以先不填
 ```
 
 查看设备 UDID：
@@ -341,8 +341,10 @@ Apple 的[无线设备排障文档](https://help.apple.com/xcode/mac/current/en.
 
 **过关标准：** `curl http://<iPhone WiFi IP>:8100/status` 能稳定返回 WDA 状态，`wda_status`、`wda_screenshot` 能正常使用。
 
+**这一步不需要 Tailscale，不需要隧道，也不需要 sudo。** 阶段 2 里勾过 **Connect via network** 以后，`wda_start()` 会让 Xcode 隔着 WiFi 直接把 WDA 启动起来，线可以不插。
+
 1. iPhone 连 WiFi，Mac 连同一个 WiFi/路由器。
-2. 用 USB 或 Xcode 启动 WDA，等手机上出现 automation 界面。
+2. 调用 `wda_start()`（或在 Xcode 里运行 `WebDriverAgentRunner`），等手机上出现 automation 界面。
 3. 在 iPhone 设置 → WiFi → 当前网络右侧 `i` 里找到 WiFi IP。
 4. 在 Mac 上确认 WDA 可访问：
    ```bash
@@ -359,6 +361,19 @@ Apple 的[无线设备排障文档](https://help.apple.com/xcode/mac/current/en.
 
 如果这一步不通，不要继续排 5G。
 
+### `wda_start()` 走哪条路
+
+启动 WDA 有两条路，`wda_start()` 自己挑：
+
+| 路 | 什么时候走 | 需要什么 | 能做到什么 |
+|----|-----------|---------|-----------|
+| **Xcode 启动** | 没填 `WDA_TAILSCALE_IP`，或者隧道的条件不齐 | USB，或同一个 WiFi + Connect via network | 在家里无线控制 |
+| **Tailscale 隧道启动** | 填了 `WDA_TAILSCALE_IP`，并且 `49152` 可达、有 Python 3.13、配了免密 sudo | 见阶段 5 | 手机离开 WiFi 以后 WDA 还活着 |
+
+隧道的条件缺任何一样，`wda_start()` 都会退回 Xcode 启动，并在返回信息里写明缺的是哪样。只在家用的话看到那条提示可以不管。
+
+想固定走某一条，在 `.env` 里设 `WDA_START_MODE=xcode` 或 `WDA_START_MODE=tunnel`（默认 `auto`）。
+
 ## 阶段 4：通过 Tailscale 远程访问
 
 **目标：** 从任何地方控制你的 iPhone（不限局域网）。
@@ -368,7 +383,7 @@ Apple 的[无线设备排障文档](https://help.apple.com/xcode/mac/current/en.
 1. 在 Mac 和 iPhone 上都安装 [Tailscale](https://tailscale.com)
 2. 记下 iPhone 的 Tailscale IP（在 `100.64.0.0/10` 这段 CGNAT 范围里，长得像 `100.x.x.x`）
 3. 在 `.env` 或 MCP 配置中设置 `WDA_TAILSCALE_IP`
-4. WDA-MCP 会优先尝试 Tailscale IP；失败时会读取 `/tmp/wda_run.log` 里的 WDA URL，并试几个常见局域网 IP。新手最稳还是显式设置 `WDA_TAILSCALE_IP`
+4. WDA-MCP 找手机的顺序：Tailscale IP → `WDA_WIFI_IP`（可选）→ Xcode 启动时 WDA 打印在 `/tmp/wda_run.log` 里的地址 → Xcode 和已配对手机之间的设备通道（iOS 17+）。要远程访问就填 `WDA_TAILSCALE_IP`；只在家用可以不填
 
 **卡住先查：**
 - iPhone 上 Tailscale 是否在线；不稳定时打开 **VPN On Demand / 按需连接**。
@@ -398,7 +413,15 @@ WDA-MCP 可以在 iPhone 使用移动数据时控制 WDA——**不需要 USB，
 - iPhone 的 WiFi 开关必须保持打开；不一定要连接任何 WiFi，但绝对不要把 WiFi 总开关关掉
 - 如果 5G 切换后 `49152` 不可达，先回到 WiFi 下启动，再离开 WiFi 继续控制
 - 两台设备都运行 Tailscale
-- Mac 需要 sudo 权限（创建 tunnel 需要 root 来建立 utun 网络接口）
+- Mac 上给隧道脚本配**免密 sudo**（创建 tunnel 需要 root 来建立 utun 网络接口，而 `wda_start()` 用的是 `sudo -n`，不会停下来问密码）：
+  ```bash
+  sudo visudo -f /etc/sudoers.d/wda-tunnel
+  ```
+  写入一行，换成你的用户名（`whoami`）、`which python3.13` 的结果和仓库的绝对路径：
+  ```
+  你的用户名 ALL=(ALL) NOPASSWD: /opt/homebrew/bin/python3.13 /绝对路径/wda-mcp/scripts/create_tunnel.py *
+  ```
+  只放行这一条命令，不要写成 `NOPASSWD: ALL`。没配的时候 `wda_start()` 会退回 Xcode 启动，并在返回信息里给出替你填好的这一行
 - Python 3.13 + pymobiledevice3
 
 **典型使用流程：**
@@ -750,7 +773,13 @@ A：WDA 用的是 **points**，不是像素。iPhone 14 Pro 是 393×852 points�
 A：确保 iPhone 不会自动锁屏。设置 → 显示与亮度 → 自动锁定 → 永不。
 
 **Q：可以不用 Tailscale 吗？**
-A：可以，但 Mac 必须能访问 iPhone 的 WiFi IP。必要时从 `/tmp/wda_run.log` 找 `ServerURLHere`；自动猜 IP 只是兜底。Tailscale 只是增加远程访问能力。
+A：可以。同一个 WiFi 下 `wda_start()` 会让 Xcode 无线启动 WDA，地址也会自己找到。如果你是在 Xcode 界面里手动启动的 WDA，在 `.env` 里填 `WDA_WIFI_IP`。Tailscale 只是增加远程访问能力。
+
+**Q：`wda_start()` 提示隧道被跳过（tunnel was skipped），或者旧版本报 `Tunnel creation timed out`？**
+A：隧道启动的条件不齐，最常见的是没配免密 sudo。只在家里同一个 WiFi 下用可以不管，Xcode 启动已经够了；要出门后继续控制，照阶段 5 配好免密 sudo。旧版本在这里不会退回 Xcode 启动，更新到最新版，或者先把 `.env` 里的 `WDA_TAILSCALE_IP` 注释掉。
+
+**Q：`wda_status` 说连不上，我该看哪儿？**
+A：`wda_status` 会把 Xcode 日志里常见的原因翻成一句话：证书还没在手机上点信任、Xcode 没登录 Apple 账号、签名过期、手机锁屏、Xcode 看不见手机。完整日志在 `/tmp/wda_run.log`。
 
 ## 致谢
 

@@ -204,7 +204,7 @@ Go to **Settings → General → VPN & Device Management** and trust the develop
 
 ```bash
 cp config.example.env .env
-# Edit .env with your device UDID and Tailscale IP
+# Edit .env with your device UDID and bundle ID. The Tailscale IP can stay empty if you only use it at home on the same WiFi
 ```
 
 Find your device UDID:
@@ -339,8 +339,10 @@ Apple's [wireless device troubleshooting guide](https://help.apple.com/xcode/mac
 
 **Pass criteria:** `curl http://<iPhone WiFi IP>:8100/status` reliably returns WDA status, and `wda_status` / `wda_screenshot` work.
 
+**This stage needs no Tailscale, no tunnel and no sudo.** Once **Connect via network** is checked (Stage 2), `wda_start()` lets Xcode launch WDA over WiFi with the cable unplugged.
+
 1. Put iPhone on WiFi and Mac on the same WiFi/router.
-2. Start WDA over USB or Xcode and wait until the automation screen appears on the iPhone.
+2. Call `wda_start()` (or run `WebDriverAgentRunner` from Xcode) and wait until the automation screen appears on the iPhone.
 3. Find the iPhone WiFi IP in Settings → WiFi → current network `i`.
 4. From the Mac, confirm WDA is reachable:
    ```bash
@@ -357,6 +359,19 @@ Apple's [wireless device troubleshooting guide](https://help.apple.com/xcode/mac
 
 If this step fails, do not debug 5G yet.
 
+### Which path `wda_start()` takes
+
+There are two ways to launch WDA, and `wda_start()` picks one:
+
+| Path | When | Needs | Gives you |
+|------|------|-------|-----------|
+| **Xcode launch** | `WDA_TAILSCALE_IP` is empty, or the tunnel requirements are not all met | USB, or same WiFi + Connect via network | Wireless control at home |
+| **Tailscale tunnel launch** | `WDA_TAILSCALE_IP` is set, `49152` is reachable, Python 3.13 is installed and passwordless sudo is configured | See Stage 5 | WDA stays alive after the iPhone leaves WiFi |
+
+If any tunnel requirement is missing, `wda_start()` falls back to the Xcode launch and says which one in its reply. If you only use it at home you can ignore that note.
+
+To force one path, set `WDA_START_MODE=xcode` or `WDA_START_MODE=tunnel` in `.env` (default `auto`).
+
 ## Stage 4: Remote Access with Tailscale
 
 **Goal:** Control your iPhone from anywhere, not just the local network.
@@ -366,7 +381,7 @@ If this step fails, do not debug 5G yet.
 1. Install [Tailscale](https://tailscale.com) on both your Mac and iPhone
 2. Note the iPhone's Tailscale IP (e.g. `100.x.x.x` from the `100.64.0.0/10` CGNAT range)
 3. Set `WDA_TAILSCALE_IP` in your `.env` or MCP config
-4. WDA-MCP will try the Tailscale IP first. If that fails, it reads the WDA URL from `/tmp/wda_run.log` and tries a few common LAN IPs. For first-time setup, explicitly setting `WDA_TAILSCALE_IP` is more reliable
+4. WDA-MCP looks for the phone in this order: Tailscale IP → `WDA_WIFI_IP` (optional) → the address WDA printed to `/tmp/wda_run.log` when Xcode launched it → the device channel Xcode keeps to a paired iPhone (iOS 17+). Set `WDA_TAILSCALE_IP` for remote access; leave it empty if you only use it at home
 
 **If stuck, check:**
 - Tailscale is online on the iPhone; enable **VPN On Demand / Connect On Demand** if it drops in the background.
@@ -396,7 +411,15 @@ Cellular remote start can still fail because of carrier networking, Tailscale re
 - Keep the iPhone WiFi toggle ON. It does not have to be connected to a WiFi network, but do not turn the WiFi toggle off
 - If `49152` disappears after switching to cellular, start WDA on WiFi first, then leave WiFi and keep controlling it
 - Tailscale running on both devices
-- `sudo` access on the Mac (tunnel creation requires root for the utun interface)
+- **Passwordless sudo** for the tunnel script on the Mac (tunnel creation requires root for the utun interface, and `wda_start()` calls `sudo -n`, which never stops to ask for a password):
+  ```bash
+  sudo visudo -f /etc/sudoers.d/wda-tunnel
+  ```
+  Add one line, with your user name (`whoami`), the output of `which python3.13` and the absolute path of this repo:
+  ```
+  yourname ALL=(ALL) NOPASSWD: /opt/homebrew/bin/python3.13 /absolute/path/to/wda-mcp/scripts/create_tunnel.py *
+  ```
+  Allow only this one command, not `NOPASSWD: ALL`. Without it `wda_start()` falls back to the Xcode launch and prints this line already filled in for you
 - Python 3.13 with pymobiledevice3: `brew install python@3.13 && python3.13 -m pip install pymobiledevice3`
 
 **Typical workflow:**
@@ -745,7 +768,13 @@ A: WDA uses **points**, not pixels. iPhone 14 Pro is 393×852 points. Use `wda_s
 A: Make sure the iPhone doesn't auto-lock. Go to Settings → Display & Brightness → Auto-Lock → Never (at least during use).
 
 **Q: Can I use this without Tailscale?**
-A: Yes, but the Mac must be able to reach the iPhone WiFi IP. If needed, find `ServerURLHere` in `/tmp/wda_run.log`; automatic IP guessing is only a fallback. Tailscale just adds remote access.
+A: Yes. On the same WiFi `wda_start()` lets Xcode launch WDA wirelessly and finds the address by itself. If you start WDA by hand from the Xcode window, set `WDA_WIFI_IP` in `.env`. Tailscale just adds remote access.
+
+**Q: `wda_start()` says the tunnel was skipped, or an older version reports `Tunnel creation timed out`?**
+A: A tunnel requirement is missing, most often passwordless sudo. At home on the same WiFi you can ignore it, the Xcode launch is enough. To keep control after leaving home, set up passwordless sudo as described in Stage 5. Older versions did not fall back to the Xcode launch here: update, or comment out `WDA_TAILSCALE_IP` in `.env` for now.
+
+**Q: `wda_status` says WDA is not reachable. Where do I look?**
+A: `wda_status` turns the usual causes from the Xcode log into one sentence: certificate not trusted on the phone yet, Xcode not signed in, signing expired, phone locked, Xcode cannot see the phone. The full log is `/tmp/wda_run.log`.
 
 ## Without a Mac
 

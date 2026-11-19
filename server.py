@@ -5,6 +5,10 @@ import re
 import json
 import time
 import base64
+import shlex
+import shutil
+import getpass
+import tempfile
 import subprocess
 import urllib.request
 import urllib.error
@@ -35,6 +39,17 @@ WDA_TAILSCALE_IP = os.environ.get("WDA_TAILSCALE_IP", "")
 WDA_DEVICE_ID = os.environ.get("WDA_DEVICE_ID", "")
 WDA_BUNDLE_ID = os.environ.get("WDA_BUNDLE_ID", "com.example.WebDriverAgentRunner.xctrunner")
 WDA_PROJECT_DIR = os.path.expanduser(os.environ.get("WDA_PROJECT_DIR", "~/Desktop/WebDriverAgent"))
+# Optional: the iPhone's WiFi IP. Only needed if you launch WDA from the Xcode GUI
+# (then there is no launch log to read the address from).
+WDA_WIFI_IP = os.environ.get("WDA_WIFI_IP", "")
+# How wda_start() launches WDA:
+#   auto   - Tailscale tunnel when everything it needs is in place, otherwise Xcode (default)
+#   xcode  - always let Xcode launch it (USB, or wireless on the same WiFi)
+#   tunnel - always use the Tailscale tunnel, never fall back
+WDA_START_MODE = os.environ.get("WDA_START_MODE", "auto").strip().lower() or "auto"
+# Optional: absolute path to python3.13 (used only for the tunnel). Auto-detected when empty.
+WDA_PYTHON313 = os.environ.get("WDA_PYTHON313", "")
+WDA_RUN_LOG = "/tmp/wda_run.log"
 SCREENSHOTS_DIR = os.path.expanduser(os.environ.get("WDA_SCREENSHOTS_DIR", "~/screenshots"))
 APP_LAYOUTS_DIR = os.path.join(os.path.dirname(__file__), "app_layouts")
 
@@ -138,36 +153,79 @@ def _get_screen() -> dict:
     return _screen
 
 
-def _wda_discover_ip() -> str:
-    global _wda_base
-    if WDA_TAILSCALE_IP:
-        try:
-            url = f"http://{WDA_TAILSCALE_IP}:8100/status"
-            req = urllib.request.Request(url, method="GET")
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                _wda_base = f"http://{WDA_TAILSCALE_IP}:8100"
-                return _wda_base
-        except Exception:
-            pass
+def _wda_alive(base: str, timeout: float = 3) -> bool:
     try:
-        with open("/tmp/wda_run.log", "r") as f:
+        req = urllib.request.Request(f"{base}/status", method="GET")
+        with urllib.request.urlopen(req, timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def _coredevice_info() -> dict:
+    """Ask Xcode's devicectl about our iPhone (iOS 17+).
+
+    Returns {"transport", "tunnel", "address"}, or {} when devicectl is missing
+    or does not know the device."""
+    if not WDA_DEVICE_ID:
+        return {}
+    path = os.path.join(tempfile.gettempdir(), f"wda_devicectl_{os.getpid()}.json")
+    try:
+        subprocess.run(["xcrun", "devicectl", "list", "devices", "--json-output", path],
+                       capture_output=True, timeout=20)
+        with open(path) as f:
+            devices = json.load(f).get("result", {}).get("devices", [])
+    except Exception:
+        return {}
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    for dev in devices:
+        if dev.get("hardwareProperties", {}).get("udid") == WDA_DEVICE_ID:
+            cp = dev.get("connectionProperties", {})
+            return {
+                "transport": cp.get("transportType", ""),
+                "tunnel": cp.get("tunnelState", ""),
+                "address": cp.get("tunnelIPAddress", ""),
+            }
+    return {}
+
+
+def _wda_discover_ip() -> str:
+    """Find a reachable WDA.
+
+    Order: Tailscale IP, WDA_WIFI_IP, the URL WDA printed when Xcode launched it,
+    and finally the private tunnel Xcode keeps to a paired iPhone."""
+    global _wda_base
+    candidates = []
+    if WDA_TAILSCALE_IP:
+        candidates.append(f"http://{WDA_TAILSCALE_IP}:8100")
+    if WDA_WIFI_IP:
+        candidates.append(f"http://{WDA_WIFI_IP}:8100")
+    try:
+        with open(WDA_RUN_LOG, "r", errors="ignore") as f:
             for line in f:
                 if "ServerURLHere" in line:
                     m = re.search(r"http://[\d.]+:8100", line)
-                    if m:
-                        _wda_base = m.group(0)
-                        return _wda_base
+                    if m and m.group(0) not in candidates:
+                        candidates.append(m.group(0))
     except FileNotFoundError:
         pass
-    for ip in ["192.168.1.14", "192.168.1.17", "192.168.1.15", "192.168.1.16"]:
-        try:
-            url = f"http://{ip}:8100/status"
-            req = urllib.request.Request(url, method="GET")
-            with urllib.request.urlopen(req, timeout=2) as resp:
-                _wda_base = f"http://{ip}:8100"
-                return _wda_base
-        except Exception:
-            continue
+    for base in candidates:
+        if _wda_alive(base):
+            _wda_base = base
+            return base
+    # USB or "Connect via network" pairing gives Xcode its own tunnel to the phone,
+    # and WDA answers on that address too. No IP guessing, and it keeps working
+    # when the phone's WiFi IP changes.
+    addr = _coredevice_info().get("address", "")
+    if addr:
+        base = f"http://[{addr}]:8100" if ":" in addr else f"http://{addr}:8100"
+        if _wda_alive(base):
+            _wda_base = base
+            return base
     return ""
 
 
@@ -204,7 +262,8 @@ def wda_status() -> str:
     """Check if WDA is running. Returns device info and IP."""
     r = _wda_request("GET", "/status")
     if "error" in r:
-        return f"WDA not reachable: {r.get('error', 'unknown')}"
+        hint = _explain_run_log(max_age=600)
+        return f"WDA not reachable: {r.get('error', 'unknown')}" + (f"\nLikely cause: {hint}" if hint else "")
     v = r.get("value", {})
     return f"WDA ready={v.get('ready', False)}, iOS {v.get('os', {}).get('version', '?')}, IP {v.get('ios', {}).get('ip', '?')}, base={_wda_base}"
 
@@ -1053,6 +1112,117 @@ def _patch_pymobiledevice3_dtx():
         return
 
 
+_LOG_HINTS = [
+    (("has not been explicitly trusted", "Certificate is not trusted"),
+     "The developer certificate is not trusted on the iPhone yet. On the phone: Settings > General > "
+     "VPN & Device Management > your Apple ID under Developer App > Trust. Then run wda_start() again."),
+    (("No Accounts",),
+     "Xcode is not signed in to an Apple Account. Open Xcode > Settings > Apple Accounts, add your Apple ID, "
+     "then run wda_renew()."),
+    (("No profiles for", "requires a development team", "No signing certificate"),
+     "Signing is not set up or has expired (free certificates last 7 days). Run wda_renew(). If that fails, open "
+     "WebDriverAgent.xcodeproj in Xcode and pick your Team under Signing & Capabilities for WebDriverAgentRunner."),
+    (("device is locked", "Unlock ", "passcode protected"),
+     "The iPhone is locked. Unlock it, keep the screen on, and run wda_start() again."),
+    (("Unable to find a destination", "Unable to find a device", "is not connected", "Timed out waiting for all destinations"),
+     "Xcode cannot see the iPhone. Plug it in over USB once, or make sure Mac and iPhone are on the same WiFi and "
+     "'Connect via network' is checked in Xcode > Window > Devices and Simulators."),
+    (("Developer Mode",),
+     "Developer Mode is off on the iPhone. Turn it on in Settings > Privacy & Security > Developer Mode and restart the phone."),
+]
+
+
+def _explain_run_log(text: str | None = None, max_age: float | None = None) -> str:
+    """Turn the usual xcodebuild failures into one plain sentence. '' when nothing known matches."""
+    if text is None:
+        try:
+            if max_age is not None and time.time() - os.path.getmtime(WDA_RUN_LOG) > max_age:
+                return ""
+            with open(WDA_RUN_LOG, "r", errors="ignore") as f:
+                text = f.read()
+        except OSError:
+            return ""
+    for needles, hint in _LOG_HINTS:
+        if any(n in text for n in needles):
+            return hint
+    return ""
+
+
+def _project_dir_problem() -> str:
+    if not os.path.isdir(os.path.join(WDA_PROJECT_DIR, "WebDriverAgent.xcodeproj")):
+        return (f"WebDriverAgent.xcodeproj was not found in {WDA_PROJECT_DIR}. "
+                "Set WDA_PROJECT_DIR in .env to the folder you cloned WebDriverAgent into.")
+    return ""
+
+
+def _sudoers_hint(py313: str, tunnel_script: str) -> str:
+    return ("passwordless sudo is not set up for the tunnel script. Add one rule with "
+            "`sudo visudo -f /etc/sudoers.d/wda-tunnel` (a single line):\n"
+            f"  {getpass.getuser()} ALL=(ALL) NOPASSWD: {py313} {tunnel_script} *")
+
+
+def _start_via_tunnel() -> tuple[bool, str]:
+    """Launch WDA through a pymobiledevice3 tunnel over Tailscale.
+
+    Only this path keeps WDA alive after the iPhone leaves WiFi. It needs Tailscale on
+    both sides, python3.13, and passwordless sudo for scripts/create_tunnel.py.
+    Returns (started, message); ("", when Tailscale is simply not configured)."""
+    if not WDA_TAILSCALE_IP:
+        return False, ""
+    import socket
+    try:
+        socket.create_connection((WDA_TAILSCALE_IP, 49152), timeout=3).close()
+    except OSError:
+        return False, (f"RemotePairing port 49152 is not reachable on {WDA_TAILSCALE_IP} (Tailscale is off on the Mac "
+                       "or the iPhone, or the phone was never paired with 'Connect via network').")
+    py313 = WDA_PYTHON313 or shutil.which("python3.13") or ""
+    if not py313 or not os.path.exists(py313):
+        return False, "python3.13 was not found (the tunnel needs it: `brew install python@3.13`, or set WDA_PYTHON313)."
+
+    _patch_pymobiledevice3_dtx()
+    tunnel_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "create_tunnel.py")
+    subprocess.run(["sudo", "-n", "pkill", "-f", "create_tunnel.py"], capture_output=True)
+    started = time.time()
+    proc = subprocess.Popen(
+        ["sudo", "-n", py313, tunnel_script, WDA_DEVICE_ID, WDA_TAILSCALE_IP, "49152"],
+        stdin=subprocess.DEVNULL,
+        stdout=open("/tmp/wda_tunnel.log", "w"), stderr=subprocess.STDOUT
+    )
+    addr = port = None
+    for _ in range(30):
+        time.sleep(0.5)
+        try:
+            # The file is written by root and may be left over from an earlier run: only trust a fresh one.
+            if os.path.getmtime("/tmp/wda_tunnel.txt") >= started - 1:
+                with open("/tmp/wda_tunnel.txt") as f:
+                    addr, port = f.read().strip().split()
+                break
+        except Exception:
+            pass
+        if proc.poll() is not None:
+            break
+    if not addr:
+        try:
+            with open("/tmp/wda_tunnel.log", "r", errors="ignore") as f:
+                tail = f.read()[-400:].strip()
+        except OSError:
+            tail = ""
+        if proc.poll() is None:
+            subprocess.run(["sudo", "-n", "pkill", "-f", "create_tunnel.py"], capture_output=True)
+        if "password is required" in tail or "a terminal is required" in tail:
+            return False, _sudoers_hint(py313, tunnel_script)
+        return False, "the tunnel did not come up" + (f": {tail}" if tail else " within 15 s.")
+
+    xcuitest_cmd = (
+        f"python3.12 -m pymobiledevice3 developer dvt xcuitest "
+        f"--rsd {addr} {port} {WDA_BUNDLE_ID} "
+        f"--env USE_PORT=8100 --env MJPEG_SERVER_PORT=9100"
+    )
+    subprocess.Popen(xcuitest_cmd, shell=True,
+                     stdout=open(WDA_RUN_LOG, "w"), stderr=subprocess.STDOUT)
+    return True, f"WDA starting via Tailscale tunnel ({addr}:{port}). Check wda_status() in ~15 seconds."
+
+
 @_tool(annotations=_DESTRUCTIVE)
 def wda_start() -> str:
     """Start/restart WDA on iPhone."""
@@ -1062,60 +1232,47 @@ def wda_start() -> str:
     subprocess.run(["pkill", "-f", "xcodebuild.*test"], capture_output=True)
     subprocess.run(["pkill", "-f", "pymobiledevice3.*xcuitest"], capture_output=True)
 
-    if WDA_TAILSCALE_IP:
-        import socket
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(3)
-            s.connect((WDA_TAILSCALE_IP, 49152))
-            s.close()
+    note = ""
+    if WDA_START_MODE in ("auto", "tunnel"):
+        ok, msg = _start_via_tunnel()
+        if ok:
+            return msg
+        if WDA_START_MODE == "tunnel":
+            return "Tunnel start failed: " + (msg or "WDA_TAILSCALE_IP is not set.")
+        note = msg
 
-            _patch_pymobiledevice3_dtx()
-
-            tunnel_script = os.path.join(os.path.dirname(__file__), "scripts", "create_tunnel.py")
-            subprocess.Popen(
-                ["sudo", "-n", "/opt/homebrew/bin/python3.13", tunnel_script,
-                 WDA_DEVICE_ID, WDA_TAILSCALE_IP, "49152"],
-                stdin=subprocess.DEVNULL,
-                stdout=open("/tmp/wda_tunnel.log", "w"), stderr=subprocess.STDOUT
-            )
-            for _ in range(30):
-                time.sleep(0.5)
-                try:
-                    with open("/tmp/wda_tunnel.txt") as f:
-                        addr, port = f.read().strip().split()
-                    break
-                except Exception:
-                    continue
-            else:
-                return "Tunnel creation timed out. Ensure sudo is passwordless or try again."
-
-            xcuitest_cmd = (
-                f"python3.12 -m pymobiledevice3 developer dvt xcuitest "
-                f"--rsd {addr} {port} {WDA_BUNDLE_ID} "
-                f"--env USE_PORT=8100 --env MJPEG_SERVER_PORT=9100"
-            )
-            subprocess.Popen(xcuitest_cmd, shell=True,
-                             stdout=open("/tmp/wda_run.log", "w"), stderr=subprocess.STDOUT)
-            return f"WDA starting via Tailscale tunnel ({addr}:{port}). Check wda_status() in ~15 seconds."
-        except (socket.error, OSError):
-            pass
-
-    cmd = f"cd {WDA_PROJECT_DIR} && nohup xcodebuild test-without-building -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'id={WDA_DEVICE_ID}' > /tmp/wda_run.log 2>&1 &"
+    # Xcode launches WDA itself: over USB, or wirelessly on the same WiFi once
+    # "Connect via network" is on. No tunnel, no sudo, no Tailscale involved.
+    problem = _project_dir_problem()
+    if problem:
+        return f"WDA start FAILED: {problem}"
+    cmd = (f"cd {shlex.quote(WDA_PROJECT_DIR)} && nohup xcodebuild test-without-building "
+           f"-project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner "
+           f"-destination 'id={WDA_DEVICE_ID}' > {WDA_RUN_LOG} 2>&1 &")
     subprocess.Popen(cmd, shell=True)
-    return "WDA starting via xcodebuild (local). Check wda_status() in ~15 seconds."
+    out = ("WDA starting via xcodebuild (USB, or wireless on the same WiFi with 'Connect via network'). "
+           "Check wda_status() in ~15 seconds.")
+    if note:
+        out += (f"\n\nNote: the Tailscale tunnel was skipped: {note}\n"
+                "Xcode start is all you need at home. The tunnel only matters if WDA has to keep running "
+                "after the iPhone leaves WiFi.")
+    return out
 
 
 @_tool(annotations=_DESTRUCTIVE)
 def wda_renew() -> str:
     """Rebuild WDA to renew 7-day signing (2-3 min)."""
-    cmd = f"cd {WDA_PROJECT_DIR} && xcodebuild build-for-testing -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'id={WDA_DEVICE_ID}' -allowProvisioningUpdates"
+    problem = _project_dir_problem()
+    if problem:
+        return f"WDA renewal FAILED: {problem}"
+    cmd = (f"cd {shlex.quote(WDA_PROJECT_DIR)} && xcodebuild build-for-testing -project WebDriverAgent.xcodeproj "
+           f"-scheme WebDriverAgentRunner -destination 'id={WDA_DEVICE_ID}' -allowProvisioningUpdates")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
     if "BUILD SUCCEEDED" in result.stdout:
         return "WDA renewal SUCCEEDED. Run wda_start() to restart."
-    else:
-        err = result.stderr[-500:] if result.stderr else result.stdout[-500:]
-        return f"WDA renewal FAILED: {err}"
+    hint = _explain_run_log(result.stdout + result.stderr)
+    err = result.stderr[-500:] if result.stderr else result.stdout[-500:]
+    return f"WDA renewal FAILED: {hint or err}"
 
 
 def _run_http() -> None:
