@@ -49,6 +49,8 @@ WDA_WIFI_IP = os.environ.get("WDA_WIFI_IP", "")
 WDA_START_MODE = os.environ.get("WDA_START_MODE", "auto").strip().lower() or "auto"
 # Optional: absolute path to python3.13 (used only for the tunnel). Auto-detected when empty.
 WDA_PYTHON313 = os.environ.get("WDA_PYTHON313", "")
+# Optional: interpreter that launches WDA through the tunnel. Defaults to python3.12, then to the tunnel's python3.13.
+WDA_PYTHON312 = os.environ.get("WDA_PYTHON312", "")
 WDA_RUN_LOG = "/tmp/wda_run.log"
 SCREENSHOTS_DIR = os.path.expanduser(os.environ.get("WDA_SCREENSHOTS_DIR", "~/screenshots"))
 APP_LAYOUTS_DIR = os.path.join(os.path.dirname(__file__), "app_layouts")
@@ -1127,6 +1129,9 @@ _LOG_HINTS = [
     (("Unable to find a destination", "Unable to find a device", "is not connected", "Timed out waiting for all destinations"),
      "Xcode cannot see the iPhone. Plug it in over USB once, or make sure Mac and iPhone are on the same WiFi and "
      "'Connect via network' is checked in Xcode > Window > Devices and Simulators."),
+    (("No module named pymobiledevice3", "command not found"),
+     "The Python that launches WDA through the tunnel is missing, or has no pymobiledevice3. Install it for that "
+     "interpreter (`python3.12 -m pip install pymobiledevice3`), or point WDA_PYTHON312 at one that has it."),
     (("Developer Mode",),
      "Developer Mode is off on the iPhone. Turn it on in Settings > Privacy & Security > Developer Mode and restart the phone."),
 ]
@@ -1219,8 +1224,11 @@ def _start_via_tunnel() -> tuple[bool, str]:
             return False, _sudoers_hint(py313, tunnel_script)
         return False, "the tunnel did not come up" + (f": {tail}" if tail else " within 15 s.")
 
+    # xcuitest has always been run with python3.12 here. A host set up from the VPS guide may
+    # only have 3.13: use the tunnel's interpreter then, it has pymobiledevice3 installed too.
+    py_xcuitest = WDA_PYTHON312 or shutil.which("python3.12") or py313
     xcuitest_cmd = (
-        f"python3.12 -m pymobiledevice3 developer dvt xcuitest "
+        f"{shlex.quote(py_xcuitest)} -m pymobiledevice3 developer dvt xcuitest "
         f"--rsd {addr} {port} {WDA_BUNDLE_ID} "
         f"--env USE_PORT=8100 --env MJPEG_SERVER_PORT=9100"
     )

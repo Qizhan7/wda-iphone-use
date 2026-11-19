@@ -711,6 +711,8 @@ crontab -e
 
 Deploy wda-mcp on a VPS. Mac is only needed once to compile WDA.
 
+> This section was put together from a setup that community members got working; we have not run the whole path on a VPS ourselves. If you get stuck, paste the full output of `wda_start()` into an issue: it reports separately why the tunnel and the Xcode launch did not work.
+
 ```
 ┌──────────┐         ┌──────────────────────────┐         ┌──────────┐
 │  Claude  │──HTTP──→│         VPS              │←Tailscale→│  iPhone  │
