@@ -1161,6 +1161,12 @@ def _sudoers_hint(py313: str, tunnel_script: str) -> str:
             f"  {getpass.getuser()} ALL=(ALL) NOPASSWD: {py313} {tunnel_script} *")
 
 
+def _sudo() -> list:
+    """Prefix for commands that need root. Root itself (the usual case on a VPS) needs
+    none, and minimal server images often ship without a sudo binary at all."""
+    return [] if getattr(os, "geteuid", lambda: 1)() == 0 else ["sudo", "-n"]
+
+
 def _start_via_tunnel() -> tuple[bool, str]:
     """Launch WDA through a pymobiledevice3 tunnel over Tailscale.
 
@@ -1181,10 +1187,10 @@ def _start_via_tunnel() -> tuple[bool, str]:
 
     _patch_pymobiledevice3_dtx()
     tunnel_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "create_tunnel.py")
-    subprocess.run(["sudo", "-n", "pkill", "-f", "create_tunnel.py"], capture_output=True)
+    subprocess.run([*_sudo(), "pkill", "-f", "create_tunnel.py"], capture_output=True)
     started = time.time()
     proc = subprocess.Popen(
-        ["sudo", "-n", py313, tunnel_script, WDA_DEVICE_ID, WDA_TAILSCALE_IP, "49152"],
+        [*_sudo(), py313, tunnel_script, WDA_DEVICE_ID, WDA_TAILSCALE_IP, "49152"],
         stdin=subprocess.DEVNULL,
         stdout=open("/tmp/wda_tunnel.log", "w"), stderr=subprocess.STDOUT
     )
@@ -1208,7 +1214,7 @@ def _start_via_tunnel() -> tuple[bool, str]:
         except OSError:
             tail = ""
         if proc.poll() is None:
-            subprocess.run(["sudo", "-n", "pkill", "-f", "create_tunnel.py"], capture_output=True)
+            subprocess.run([*_sudo(), "pkill", "-f", "create_tunnel.py"], capture_output=True)
         if "password is required" in tail or "a terminal is required" in tail:
             return False, _sudoers_hint(py313, tunnel_script)
         return False, "the tunnel did not come up" + (f": {tail}" if tail else " within 15 s.")
@@ -1243,8 +1249,16 @@ def wda_start() -> str:
 
     # Xcode launches WDA itself: over USB, or wirelessly on the same WiFi once
     # "Connect via network" is on. No tunnel, no sudo, no Tailscale involved.
-    problem = _project_dir_problem()
+    if not shutil.which("xcodebuild"):
+        # A VPS or any Linux host: there is no Xcode to fall back to, the tunnel is the only way in.
+        problem = "xcodebuild is not installed on this machine, so WDA can only be started through the Tailscale tunnel here."
+    else:
+        problem = _project_dir_problem()
     if problem:
+        if note:
+            return f"WDA start FAILED.\nTunnel: {note}\nXcode launch: {problem}"
+        if not WDA_TAILSCALE_IP and not shutil.which("xcodebuild"):
+            problem += " Set WDA_TAILSCALE_IP to the iPhone's Tailscale IP."
         return f"WDA start FAILED: {problem}"
     cmd = (f"cd {shlex.quote(WDA_PROJECT_DIR)} && nohup xcodebuild test-without-building "
            f"-project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner "

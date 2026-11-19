@@ -577,6 +577,8 @@ bash scripts/watch_handoff.sh <iPhone的Tailscale IP>
 > python3.12 -m pip install -U pymobiledevice3
 > python3.13 -m pip install -U pymobiledevice3
 > ```
+>
+> 服务跑在 VPS 上、没法插线的情况，我们还没有实测过。隧道脚本在找不到配对记录时会自己发起一次网络配对（手机上弹“信任”框），所以可以先试试删掉 VPS 上那份 `remote_<UDID>.plist` 再跑 `wda_start()`。试通了或者试不通，都欢迎开 issue 告诉我们。
 
 ## ⚠️ 安全：HTTP 模式的鉴权
 

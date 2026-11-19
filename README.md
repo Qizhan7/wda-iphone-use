@@ -574,6 +574,8 @@ Interpret the first failing column: `ping` means Tailscale/network handoff, `810
 > python3.12 -m pip install -U pymobiledevice3
 > python3.13 -m pip install -U pymobiledevice3
 > ```
+>
+> When the server runs on a VPS and there is no cable to plug in: we have not tested this case ourselves. The tunnel script starts a network pairing on its own when it finds no pair record (the phone shows a Trust dialog), so try deleting `remote_<UDID>.plist` on the VPS and running `wda_start()` again. Whether it works or not, an issue telling us is welcome.
 
 ## ⚠️ Security: HTTP Mode Authentication
 
