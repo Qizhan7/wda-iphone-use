@@ -3,7 +3,11 @@
 Usage: sudo python3.13 scripts/create_tunnel.py <DEVICE_ID> <TAILSCALE_IP> <PAIRING_PORT>
 Writes "<address> <port>" to /tmp/wda_tunnel.txt when ready.
 """
-import asyncio, sys
+import asyncio, os, sys
+
+# pymobiledevice3 shells out to ifconfig/route to bring up the utun interface.
+# MCP hosts (and sudo) often hand us a short PATH without /sbin, so add it here.
+os.environ["PATH"] = os.environ.get("PATH", "") + ":/sbin:/usr/sbin:/bin:/usr/bin"
 
 async def main():
     from pymobiledevice3.remote.tunnel_service import (
