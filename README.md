@@ -432,6 +432,7 @@ Cellular remote start can still fail because of carrier networking, Tailscale re
 - If `8100` drops, check Tailscale, mobile carrier networking, DERP, and VPN/proxy conflicts.
 - If `8100` stays up but `49152` drops, you can still control the running WDA but cannot restart it remotely yet. Starting on WiFi is the stable fallback.
 - If it drops during handoff, use the watcher below to see whether `ping`, `8100`, or `49152` fails first.
+- Go easy on full-size screenshots over mobile data. One original is several MB, and through a DERP relay we measured it failing to finish in 30 seconds. Read the UI tree first with `wda_check` / `wda_source` (tens of KB) and take a screenshot only when you need the picture.
 - If 5G remains unstable, stop digging and use the WiFi start-and-keepalive workflow.
 
 > ### ⚠️ Important workflow before going out (read carefully!)
@@ -558,6 +559,20 @@ Interpret the first failing column: `ping` means Tailscale/network handoff, `810
 > ```bash
 > sudo pkill -9 remoted
 > # Wait 5 seconds; the device should become "available (paired)"
+> ```
+
+> **Tunnel handshake fails with `ConnectionTerminatedError`, but launching from Xcode works fine?**
+>
+> The pair record that pymobiledevice3 keeps for itself has most likely gone stale. It lives at `~/.pymobiledevice3/remote_<UDID>.plist` and is separate from Xcode's pairing, so Xcode connecting says nothing about whether this one is still valid. We hit this after half a year without using the tunnel, with an iOS update in between: the phone no longer accepted the record.
+>
+> Plug in USB once and issue a fresh record. No Trust dialog appears:
+> ```bash
+> python3.12 -m pymobiledevice3 lockdown remotepairing --pair --udid <your UDID>
+> ```
+> Unplug afterwards; the handshake works again over both WiFi and Tailscale. The subcommand is verified on pymobiledevice3 11.60.0. If your version does not have it, upgrade first, in both the 3.12 and the 3.13 environment:
+> ```bash
+> python3.12 -m pip install -U pymobiledevice3
+> python3.13 -m pip install -U pymobiledevice3
 > ```
 
 ## ⚠️ Security: HTTP Mode Authentication

@@ -434,6 +434,7 @@ WDA-MCP 可以在 iPhone 使用移动数据时控制 WDA——**不需要 USB，
 - `8100` 掉了：优先查 Tailscale/移动网络/DERP/VPN 冲突。
 - `8100` 还在但 `49152` 掉了：已运行的 WDA 还能控制，但暂时不能远程重启；回 WiFi 下启动最稳。
 - 切换瞬间掉线：用下面的监控脚本看是 `ping`、`8100`、还是 `49152` 先掉。
+- 移动数据下少截全尺寸图。一张原图有几 MB，走 DERP 中继时实测 30 秒都传不完。先用 `wda_check` / `wda_source` 读 UI 树（只有几十 KB），确实要看画面再截图。
 - 尝试 5G 不稳时，不要硬排到崩溃，先用 WiFi 启动保活方案。
 
 > ### ⚠️ 重要流程：出门前操作步骤（很重要，请仔细看！）
@@ -561,6 +562,20 @@ bash scripts/watch_handoff.sh <iPhone的Tailscale IP>
 > ```bash
 > sudo pkill -9 remoted
 > # 等 5 秒，设备会变成 "available (paired)"
+> ```
+
+> **隧道握手报 `ConnectionTerminatedError`，但用 Xcode 启动一切正常？**
+>
+> 多半是 pymobiledevice3 自己那份配对记录失效了。它存在 `~/.pymobiledevice3/remote_<UDID>.plist`，跟 Xcode 的配对是两份，各管各的，所以 Xcode 能连上不代表它还有效。我们遇到的那次，是隔了半年没用、中间升过 iOS，手机不再认这份记录。
+>
+> 插一次 USB 线重发一份就好，不会弹“信任”框：
+> ```bash
+> python3.12 -m pymobiledevice3 lockdown remotepairing --pair --udid <你的UDID>
+> ```
+> 之后拔线，WiFi 和 Tailscale 下都能重新握手。这个子命令在 pymobiledevice3 11.60.0 上实测可用；提示没有这个命令就先升级，3.12 和 3.13 两个环境都要升：
+> ```bash
+> python3.12 -m pip install -U pymobiledevice3
+> python3.13 -m pip install -U pymobiledevice3
 > ```
 
 ## ⚠️ 安全：HTTP 模式的鉴权
