@@ -15,8 +15,8 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | **Claude Code / Claude Desktop** | `server.py` stdio | 本地 MCP，最稳。 |
 | **claude.ai 网页聊天** | `server.py --http` + HTTPS tunnel | 免费版可用 1 个自定义 MCP 连接器，适合自然语言控手机。 |
 | **Codex** | `server.py` stdio | 需要把 `wda` 加进 Codex 的 MCP 配置。 |
-| **ChatGPT 网页版 / 手机浏览器网页版** | `server_chatgpt.py` + HTTPS `/mcp` | 走 ChatGPT Developer Mode，详见 [`CHATGPT_CN.md`](CHATGPT_CN.md)。 |
-| **ChatGPT iOS/Android 原生 App** | 暂不推荐 | 自定义 MCP App 目前主要按网页版路线测试，原生 App 不要当作稳定入口。 |
+| **ChatGPT 网页版 / 手机浏览器网页版** | `server_chatgpt.py` + HTTPS `/mcp` | 先确认你的计划能调用写工具，见[平台兼容性](#平台兼容性)。配置步骤在 [`CHATGPT_CN.md`](CHATGPT_CN.md)。 |
+| **ChatGPT iOS/Android 原生 App** | 不行 | OpenAI 的帮助页写明自定义 MCP 服务器只能在网页版用。 |
 
 > Claude 已经跑通的用户不用改配置。ChatGPT 单独走 `server_chatgpt.py`，不要和 Claude 的原路线混在一起。
 
@@ -33,32 +33,56 @@ WDA 在 8100 端口应声以后，MCP 服务器和上面那些客户端连它的
 
 ## 平台兼容性
 
+wda-mcp 要的客户端得会两件事：能加你自己的 MCP 服务器，能调用会动手的工具。点击、输入、滑动都算「写」工具。只让用读取类工具的客户端，看得见屏幕，碰不了它。
+
+下面是 2026-11-20 对着各家自己的文档核的。前几列写的是它们的帮助页现在怎么说；「我们试过」是我们上一次亲手用这个客户端控手机的月份，「—」是我们手里没有自己的实测。这一块变得很快，哪一行过时了，欢迎提 issue。
+
+服务器对本地客户端走 stdio。HTTP 模式是 streamable HTTP，地址 `/mcp`，带 OAuth 和 Bearer 鉴权，所以只收 SSE 的客户端直接连不上。
+
 ### Anthropic（Claude）
 
-| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 备注 |
-|------|:----------:|:------:|---------|------|
-| **claude.ai**（网页） | ✅ | ✅ | 免费（1 个连接器） | 最省钱的聊天入口。 |
-| **Claude Desktop** | ✅ | ✅ | 免费 | 适合桌面常驻。 |
-| **Claude Code**（命令行） | ✅ | ✅ | Pro 或 API | 适合开发和调试。 |
+| 产品 | 接自己的 MCP 服务器 | 写工具 | 计划 | 我们试过 |
+|------|--------------------|--------|------|----------|
+| **claude.ai**（网页） | 远程 HTTPS，加成自定义连接器 | ✅ | 免费版起。免费版只能加 1 个自定义连接器 | 2026-04 |
+| **Claude Desktop** | 远程同网页。本地走桌面扩展或 `claude_desktop_config.json` | ✅ | 远程连接器和桌面扩展免费版起 | — |
+| **Claude Code**（命令行） | stdio 和 HTTP | ✅ 会弹权限确认 | Pro 起，或 API 账号 | 2026-11 |
+| **Claude iOS / Android** | 在网页或桌面加好的连接器，App 里会出现。直接在手机上添加还在 beta | 文档没说 | — | — |
+| **Cowork** | 远程连接器；本地会话里还能用本地 MCP | ✅ | Pro 起 | — |
+
+出处：[用远程 MCP 加自定义连接器](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)、[使用连接器](https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)。
 
 ### OpenAI（ChatGPT / Codex）
 
-| 产品 | 自定义 MCP？ | 能操控？ | 最低计划 | 推荐入口 |
-|------|:----------:|:------:|---------|---------|
-| **ChatGPT 网页版** | ✅ Developer Mode | ✅ | Plus ($20/月) | `server_chatgpt.py` + HTTPS `/mcp` |
-| **手机浏览器打开 ChatGPT 网页版** | ✅ 可尝试 | ✅ | Plus | 同上 |
-| **ChatGPT 原生手机 App** | ❌ 写操作被禁 | ❌ | — | 用手机浏览器打开 chatgpt.com |
-| **Codex CLI / Codex App** | ✅ | ✅ | — | `server.py` stdio |
+| 产品 | 接自己的 MCP 服务器 | 写工具 | 我们试过 |
+|------|--------------------|--------|----------|
+| **ChatGPT 网页版** | 远程 HTTPS，从 Plugins → + → Add custom MCP server 添加 | 文档：完整 MCP（含写）给 Business 和 Enterprise/Edu；Pro 只有读取；没提 Plus | 2026-04 用 Plus：读写都通。之后没重测 |
+| **手机浏览器打开 ChatGPT 网页版** | 同网页版，本质上就是网页 | 同网页版 | — |
+| **ChatGPT iOS / Android App** | 文档原话："Can I connect custom MCP servers on mobile? No - web only." | — | 2026-04：只读工具能加载，写操作被拒。之后没重测 |
+| **Codex CLI / ChatGPT 桌面 App / IDE 扩展** | stdio 和 streamable HTTP | 文档没提限制 | — |
 
-自定义 MCP 需要开启 [Developer Mode](https://help.openai.com/en/articles/12584461)，支持 Plus、Pro、Team、Enterprise、Edu 计划。Free 和 Go 不能添加自定义 MCP（Go 只有 OpenAI 内置连接器）。开了 Developer Mode 后所有支持的计划都是完整读写，没有计划间差异。写操作可能会弹确认框。
+**走 ChatGPT 这条路之前，先确认你的计划能调用写工具。** OpenAI 的帮助页 [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461)（2026 年 10 月底更新）写着："Custom MCP server connections and full MCP support are available for ChatGPT Business and Enterprise/Edu customers on ChatGPT web"，以及 "Pro users can connect custom MCP servers with read/fetch permissions."。它还说现在不用先开 Developer Mode。这比我们 2026 年 4 月见到的要严，那时 Plus 账号开了 Developer Mode 就能调用写工具。我们没有重测。你手里要是有 Plus、Pro 或手机 App 上最近的结果，欢迎提 issue 告诉我们。
+
+Codex 的出处：[Codex MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
 
 ### 其他 MCP 客户端
 
-| 产品 | 自定义 MCP？ | 能操控？ | 备注 |
-|------|:----------:|:------:|------|
-| **Gemini CLI** | ✅ | ✅ | 网页版 Gemini 不支持自定义 MCP。 |
-| **Mistral Le Chat** | ✅ | ✅ | 可作为免费聊天入口测试。 |
-| **Cursor / Windsurf / Cline** | ✅ | ✅ | 适合开发环境内使用。 |
+这张表只对过文档。
+
+| 产品 | 接自己的 MCP 服务器 | 写工具 | 备注 |
+|------|--------------------|--------|------|
+| **Gemini CLI** | stdio、SSE、streamable HTTP | ✅ 默认每次调用前确认 | |
+| **Gemini App**（网页和手机） | 只能填远程地址 | ✅ 每个写操作都要手动确认 | 自定义 MCP 是 2026 年 6 月进 Gemini Spark 的。仅限美国、18 岁以上、个人账号、英文 |
+| **Mistral Le Chat** | 远程，无鉴权、Bearer token、OAuth 2.1 都行 | ✅ | 免费账号可以加连接器 |
+| **Grok**（网页、iOS、Android） | 远程。服务器得能从公网访问 | 文档对自定义服务器没说清 | 连接器 2026 年 5 月上线 |
+| **Perplexity** | 远程 HTTPS | 文档没说 | |
+| **VS Code（Copilot）/ Cursor** | stdio 和远程 | ✅ 要批准 | |
+| **Windsurf / Cline** | ✅ | ✅ | 沿用我们 2026 年 4 月的表，这次没重读 |
+| **LM Studio / Open WebUI** | LM Studio：本地和远程都行。Open WebUI：只收 streamable HTTP | 没核 | 跑本地模型用 |
+| **BoltAI**（iOS） | 只能远程 | 没核 | 一个能填远程 MCP 服务器的手机 App。它的文档要的是 SSE |
+
+DeepSeek、Kimi、豆包、通义千问、智谱清言、腾讯元宝的聊天 App：没找到官方文档说可以加自己的 MCP 服务器。
+
+出处：[Gemini 帮助](https://support.google.com/gemini/answer/17209137)、[Gemini Spark 2026 年 6 月更新](https://blog.google/innovation-and-ai/products/gemini-app/gemini-spark-updates-june-2026/)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)、[Le Chat MCP 连接器](https://docs.mistral.ai/le-chat/knowledge-integrations/connectors/mcp-connectors)、[Grok 连接器](https://x.ai/news/grok-connectors)、[Perplexity](https://www.perplexity.ai/help-center/en/articles/11502712-local-and-remote-mcps-for-perplexity)、[VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)、[Cursor](https://cursor.com/docs/context/mcp)、[LM Studio](https://lmstudio.ai/docs/app/mcp)、[Open WebUI](https://docs.openwebui.com/features/extensibility/mcp)、[BoltAI](https://docs.boltai.com/docs/boltai-mobile/mcp-servers)。
 
 ## 工具（共 22 个，按组加载）
 
@@ -630,7 +654,7 @@ python server.py --http
 | 客户端 | 接入方式 |
 |------|---------|
 | **claude.ai 自定义连接器** | 加一个 custom header：`Authorization: Bearer <access_token>` |
-| **ChatGPT Developer Mode** | 直接填 token，或让它走标准 OAuth `authorization_code` 流程 |
+| **ChatGPT** | 直接填 token，或让它走标准 OAuth `authorization_code` 流程 |
 | **curl / 脚本** | `curl -H "Authorization: Bearer $TOKEN" https://your-url/mcp` |
 | **本地 Claude Code（stdio）** | 不需要 token，stdio 不走 HTTP |
 

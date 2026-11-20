@@ -1,11 +1,13 @@
 # ChatGPT-Specific Setup
 
+> **Read this first (2026-11-20).** This guide was written in April 2026 and we have not re-walked it since. According to OpenAI's help page [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461), two things have changed on their side. Custom MCP servers are now added from Plugins → + → Add custom MCP server, without turning on Developer Mode first. And full MCP, write tools included, is listed for Business and Enterprise/Edu only, with Pro limited to read/fetch. wda-mcp needs write tools to tap and type. In April a Plus account could call them. Check what your plan can do before you spend time on the steps below.
+
 This path is separate from the Claude / Codex stdio path. If Claude already works on stdio, keep that configuration — this guide only covers exposing wda-mcp over HTTPS for ChatGPT Developer Mode.
 
 Supported entry points:
-- ChatGPT web: recommended.
-- `chatgpt.com` in a mobile browser: works; it is still the web app.
-- ChatGPT iOS/Android native app: **does not work** — OpenAI blocks MCP write actions on native apps. Read-only tools load, but tap/type/swipe are rejected. Use the mobile browser instead.
+- ChatGPT web: the path this guide walks.
+- `chatgpt.com` in a mobile browser: it is still the web app.
+- ChatGPT iOS/Android native app: no. OpenAI's help page says "Can I connect custom MCP servers on mobile? No - web only." In April 2026 read-only tools loaded there, but tap/type/swipe were rejected.
 
 ## Fast path
 

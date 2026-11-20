@@ -1,11 +1,13 @@
 # ChatGPT 专用接入路径
 
+> **先读这段（2026-11-20）。** 这份文档是 2026 年 4 月写的，之后我们没有重新走过。按 OpenAI 的帮助页 [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461)，他们那边变了两处。自定义 MCP 服务器现在从 Plugins → + → Add custom MCP server 添加，不用先开 Developer Mode。完整的 MCP（含写工具）只列了 Business 和 Enterprise/Edu，Pro 只有读取。wda-mcp 要靠写工具才能点击和输入。4 月的时候 Plus 账号是能调用的。照下面的步骤花时间之前，先确认你的计划现在能做什么。
+
 这条路径和 Claude / Codex 的 stdio 路径分开。Claude 已经跑通了就继续用原来的配置；这份文档只讲怎么把 wda-mcp 通过 HTTPS 暴露给 ChatGPT Developer Mode。
 
 适用入口：
-- ChatGPT 网页版：推荐。
-- 手机浏览器打开 `chatgpt.com`：可以用，本质上还是网页版。
-- ChatGPT iOS/Android 原生 App：**不能用** — OpenAI 在原生 App 上禁了 MCP 写操作。只读工具能加载，但 tap/type/swipe 会被拒绝。用手机浏览器打开 chatgpt.com 代替。
+- ChatGPT 网页版：这份文档走的就是它。
+- 手机浏览器打开 `chatgpt.com`：本质上还是网页版。
+- ChatGPT iOS/Android 原生 App：不行。OpenAI 的帮助页原话是 "Can I connect custom MCP servers on mobile? No - web only."。2026 年 4 月的时候只读工具能加载，tap/type/swipe 会被拒绝。
 
 ## 快速通道
 

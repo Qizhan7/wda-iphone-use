@@ -15,8 +15,8 @@ WDA-MCP needs full read+write MCP support: viewing the screen plus tapping, typi
 | **Claude Code / Claude Desktop** | `server.py` stdio | Local MCP, the most stable path. |
 | **claude.ai web chat** | `server.py --http` + HTTPS tunnel | Good free chat-based control path. |
 | **Codex** | `server.py` stdio | Add `wda` to your Codex MCP config. |
-| **ChatGPT web / mobile browser web** | `server_chatgpt.py` + HTTPS `/mcp` | Uses ChatGPT Developer Mode. See [`CHATGPT.md`](CHATGPT.md). |
-| **ChatGPT iOS/Android native app** | Not recommended yet | Treat the web version as the stable test path. |
+| **ChatGPT web / mobile browser web** | `server_chatgpt.py` + HTTPS `/mcp` | First check that your plan can call write tools, see [Platform Compatibility](#platform-compatibility). Setup is in [`CHATGPT.md`](CHATGPT.md). |
+| **ChatGPT iOS/Android native app** | No | OpenAI's help page says custom MCP servers are web only. |
 
 > If Claude already works for you, keep that configuration. ChatGPT has its own `server_chatgpt.py` entry point so the two paths don't get mixed together.
 
@@ -33,32 +33,56 @@ Once WDA answers on port 8100, the MCP server and the clients above talk to it t
 
 ## Platform Compatibility
 
+wda-mcp needs a client that can do two things: add your own MCP server, and call tools that act. Tapping, typing and swiping are write tools. A client that only allows read or fetch tools can look at the screen but cannot touch it.
+
+Last checked on 2026-11-20 against each vendor's own documentation. The first columns say what their help pages say today. "We ran it" is the month we last controlled a phone through that client ourselves; "—" means we have no run of our own to point to. This area changes fast. If a row is out of date, an issue is welcome.
+
+The server speaks stdio for local clients. Its HTTP mode serves streamable HTTP at `/mcp` with OAuth and Bearer auth, so a client that only accepts SSE will not connect to it as is.
+
 ### Anthropic (Claude)
 
-| Product | Custom MCP? | Read+Write? | Notes |
-|---------|:-----------:|:-----------:|------|
-| **claude.ai** (web) | ✅ | ✅ | Best low-friction chat entry point. |
-| **Claude Desktop** | ✅ | ✅ | Good desktop option. |
-| **Claude Code** (CLI) | ✅ | ✅ | Best for development and debugging. |
+| Product | Your own MCP server | Write tools | Plan | We ran it |
+|---------|---------------------|-------------|------|-----------|
+| **claude.ai** (web) | Remote HTTPS, as a custom connector | ✅ | Free and up. Free is limited to one custom connector | 2026-04 |
+| **Claude Desktop** | Remote, same as web. Local through desktop extensions or `claude_desktop_config.json` | ✅ | Free and up for remote connectors and desktop extensions | — |
+| **Claude Code** (CLI) | stdio and HTTP | ✅ with permission prompts | Pro and up, or an API account | 2026-11 |
+| **Claude iOS / Android** | A connector added on web or desktop shows up in the app. Adding one from the phone is in beta | Docs do not say | — | — |
+| **Cowork** | Remote connectors, plus local MCP in local sessions | ✅ | Pro and up | — |
+
+Sources: [custom connectors using remote MCP](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp), [use connectors](https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities), [Claude Code MCP](https://code.claude.com/docs/en/mcp).
 
 ### OpenAI (ChatGPT / Codex)
 
-| Product | Custom MCP? | Read+Write? | Min. plan | Recommended entry |
-|---------|:-----------:|:-----------:|-----------|-------------------|
-| **ChatGPT web** | ✅ Developer Mode | ✅ | Plus ($20/mo) | `server_chatgpt.py` + HTTPS `/mcp` |
-| **ChatGPT in a mobile browser** | ✅ worth trying | ✅ | Plus | Same as above |
-| **ChatGPT native mobile app** | ❌ write blocked | ❌ | — | Use mobile browser (chatgpt.com) instead |
-| **Codex CLI / Codex App** | ✅ | ✅ | — | `server.py` stdio |
+| Product | Your own MCP server | Write tools | We ran it |
+|---------|---------------------|-------------|-----------|
+| **ChatGPT web** | Remote HTTPS, added from Plugins → + → Add custom MCP server | Docs: full MCP, write included, on Business and Enterprise/Edu. Pro gets read/fetch only. Plus is not mentioned | 2026-04 on Plus: read and write both worked. Not re-tested since |
+| **ChatGPT in a mobile browser** | Same as web, it is the web app | Same as web | — |
+| **ChatGPT iOS / Android app** | Docs: "Can I connect custom MCP servers on mobile? No - web only." | — | 2026-04: read tools loaded, write calls were rejected. Not re-tested since |
+| **Codex CLI / ChatGPT desktop app / IDE extension** | stdio and streamable HTTP | Docs name no limit | — |
 
-Custom MCP requires [Developer Mode](https://help.openai.com/en/articles/12584461), available on Plus, Pro, Team, Enterprise, and Edu plans. Free and Go plans cannot add custom MCP servers (Go only gets OpenAI's built-in connectors). With Developer Mode on, all eligible plans get full read+write MCP — no per-plan restriction. Write actions may show a confirmation dialog.
+**Before you set up the ChatGPT path, check that your plan can call write tools.** OpenAI's help page [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461) (updated in late October 2026) says "Custom MCP server connections and full MCP support are available for ChatGPT Business and Enterprise/Edu customers on ChatGPT web" and "Pro users can connect custom MCP servers with read/fetch permissions." It also says Developer Mode no longer has to be turned on first. That is stricter than what we saw in April 2026, when a Plus account in Developer Mode could call write tools. We have not re-tested. If you have a recent result on Plus, Pro or the mobile app, tell us in an issue.
+
+Source for Codex: [Codex MCP docs](https://learn.chatgpt.com/docs/extend/mcp).
 
 ### Other MCP Clients
 
-| Product | Custom MCP? | Read+Write? | Notes |
-|---------|:-----------:|:-----------:|------|
-| **Gemini CLI** | ✅ | ✅ | Gemini web does not support custom MCP. |
-| **Mistral Le Chat** | ✅ | ✅ | Useful free chat entry point to test. |
-| **Cursor / Windsurf / Cline** | ✅ | ✅ | Good inside development environments. |
+This table is from documentation only.
+
+| Product | Your own MCP server | Write tools | Notes |
+|---------|---------------------|-------------|-------|
+| **Gemini CLI** | stdio, SSE, streamable HTTP | ✅, asks before each call by default | |
+| **Gemini app** (web and mobile) | Remote URL only | ✅, each write action needs manual confirmation | Custom MCP came to Gemini Spark in June 2026. US only, 18 and over, personal accounts, English |
+| **Mistral Le Chat** | Remote, with no auth, a bearer token, or OAuth 2.1 | ✅ | Free accounts can add connectors |
+| **Grok** (web, iOS, Android) | Remote. The server must be reachable from the public Internet | Docs are not clear for custom servers | Connectors launched in May 2026 |
+| **Perplexity** | Remote HTTPS | Docs do not say | |
+| **VS Code (Copilot) / Cursor** | stdio and remote | ✅ with approval | |
+| **Windsurf / Cline** | ✅ | ✅ | Carried over from our April 2026 table, not re-read |
+| **LM Studio / Open WebUI** | LM Studio: local and remote. Open WebUI: streamable HTTP only | Not checked | For local models |
+| **BoltAI** (iOS) | Remote only | Not checked | A phone app that takes a remote MCP server. Its docs ask for SSE |
+
+For the chat apps of DeepSeek, Kimi, Doubao, Tongyi Qianwen, Zhipu Qingyan and Tencent Yuanbao, we found no official documentation for adding your own MCP server.
+
+Sources: [Gemini help](https://support.google.com/gemini/answer/17209137), [Gemini Spark, June 2026](https://blog.google/innovation-and-ai/products/gemini-app/gemini-spark-updates-june-2026/), [Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md), [Le Chat MCP connectors](https://docs.mistral.ai/le-chat/knowledge-integrations/connectors/mcp-connectors), [Grok connectors](https://x.ai/news/grok-connectors), [Perplexity](https://www.perplexity.ai/help-center/en/articles/11502712-local-and-remote-mcps-for-perplexity), [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers), [Cursor](https://cursor.com/docs/context/mcp), [LM Studio](https://lmstudio.ai/docs/app/mcp), [Open WebUI](https://docs.openwebui.com/features/extensibility/mcp), [BoltAI](https://docs.boltai.com/docs/boltai-mobile/mcp-servers).
 
 ## Tools (22 total, loadable by group)
 
@@ -627,7 +651,7 @@ Loopback clients (`127.0.0.1`, `::1`) are allowed without auth so a local agent 
 | Client | How to authenticate |
 |--------|---------------------|
 | **claude.ai custom connector** | Paste `Authorization: Bearer <access_token>` as a custom header |
-| **ChatGPT Developer Mode** | Paste the token, or let it run the OAuth `authorization_code` flow |
+| **ChatGPT** | Paste the token, or let it run the OAuth `authorization_code` flow |
 | **curl / scripts** | `curl -H "Authorization: Bearer $TOKEN" https://your-url/mcp` |
 | **Local Claude Code via stdio** | No token needed — stdio bypasses HTTP entirely |
 
