@@ -20,6 +20,17 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 
 > Claude 已经跑通的用户不用改配置。ChatGPT 单独走 `server_chatgpt.py`，不要和 Claude 的原路线混在一起。
 
+## 有 Mac 还是没有 Mac
+
+只有「把 WDA 装进手机并启动起来」这一段跟你用什么电脑有关。先挑一条：
+
+| 你有 | 照着走 | 验过的环境 |
+|------|------|------|
+| **Mac** | [快速开始](#快速开始)：Xcode 编译、签名、启动 WDA | iOS 18.5 和 iOS 26.4 |
+| **Windows 电脑，没有 Mac** | [没有 Mac](#没有-mac)：现成的 WDA 包、Sideloadly、一条命令启动 | Windows 11 配 iOS 18.5 |
+
+WDA 在 8100 端口应声以后，MCP 服务器和上面那些客户端连它的方式都一样。
+
 ## 平台兼容性
 
 ### Anthropic（Claude）
@@ -148,7 +159,7 @@ wda_send_wechat("Alice", "收到！")   # 5 秒，跳过导航
 
 ## 前置条件
 
-- **macOS** + Xcode
+- **macOS** + Xcode。没有 Mac 的话 Windows 电脑也行，见[没有 Mac](#没有-mac)
 - **iPhone**：首次设置需要 USB，之后可以用 Tailscale 远程
 - **Python 3.12+** + `mcp[cli]`
 - **Python 3.13**（远程启动需要，TCP tunnel 依赖 Python 3.13 的 SSL PSK 支持）
@@ -695,7 +706,7 @@ crontab -e
 
 ## VPS 部署方案（不需要 Mac 一直开着）
 
-把 wda-mcp 部署到 VPS 上，Mac 只在第一次编译 WDA 时用一次，之后就不需要了。
+把 wda-mcp 部署到 VPS 上。除了头一回装机，别的 VPS 都能干：给 WDA 签名、装进手机，要一台能插 iPhone 的电脑。主教程走的是带 Xcode 的 Mac；Windows 电脑也行，见[「没有 Mac」](#没有-mac)。
 
 > 这一节是按群友跑通的架构整理的，我们自己没有在 VPS 上把全程实跑过。卡住的时候把 `wda_start()` 的完整返回贴到 issue 里，它会分别说明隧道和 Xcode 两条路各自为什么没走通。
 
@@ -802,35 +813,115 @@ A：`wda_status` 会把 Xcode 日志里常见的原因翻成一句话：证书�
 
 ## 没有 Mac
 
-主教程默认你有 macOS + Xcode。没有 Mac 也能用，只是装 WDA 那一步换个法子。
+哪一步都不需要 Mac。需要的是一台能插 iPhone 的电脑，用来给 WDA 签名、装进手机、把它启动起来，Windows 就够。VPS 做不了签名这一步，它没有 USB 口，碰不到手机。
 
-### 哪一步需要 Mac
+下面这条免费的路，我们在 2026-11-20 从头到尾亲手走了一遍：一台 Windows 11 笔记本，一台 iOS 18.5 的 iPhone XS，一个免费 Apple ID。WDA 起来了，也听指令，全程没有碰 Mac。具体版本和还没验的几处，写在[我们验过什么](#我们验过什么)。
 
-哪一步都不需要。需要的是一台能插 iPhone 的电脑，用来给 WDA 签名、装进手机，Windows 就够。VPS 做不了这一步，它没有 USB 口，碰不到手机。
+| 步骤 | 有 Mac | 没有 Mac |
+|------|--------|----------|
+| 拿到 WDA | 用 Xcode 编译 | 下载 Appium 编好的 `WebDriverAgentRunner-Runner.zip` |
+| 签名、装进手机 | Xcode | [Sideloadly](https://sideloadly.io)，插线，用你的 Apple ID |
+| 启动 WDA | `wda_start()` | `pymobiledevice3 developer dvt xcuitest <bundle id>` |
+| 控制 | 往 8100 端口发请求 | 一样 |
+| 7 天续签 | `wda_renew` 或 cron 脚本 | 在 Sideloadly 里再按一次 Start |
 
-| 步骤 | 需要 Mac 吗 | 没有 Mac 怎么办 |
-|------|:---:|-------------|
-| 编译 WDA | 不需要 | 跳过。Appium 每个版本都发一个编好的真机包：[WebDriverAgent 的 Releases 页](https://github.com/appium/WebDriverAgent/releases)里的 `WebDriverAgentRunner-Runner.zip`，没签名 |
-| 签名、装进手机 | 不需要 | Windows 上用 [Sideloadly](https://sideloadly.io)，插线，用你自己的 Apple ID |
-| 启动 WDA | 不需要 | 本项目的隧道启动（在 VPS 或电脑上调 `wda_start()`），或者 [`go-ios runwda`](https://github.com/danielpaulus/go-ios)（Linux/Windows 都能跑） |
-| 通过 HTTP 控制 | 不需要 | 哪个平台都行，就是往 8100 端口发请求 |
-| 7 天续签 | 不需要 | 用 Sideloadly 重签，或者每年 99 美元买开发者账号，证书管一年 |
+### 方案 A：免费，用一台 Windows 电脑
 
-### 方案 A：免费，每 7 天用电脑签一次
+#### 电脑上先装这三样
 
-> 我们自己用的是 Mac，这条路没有从头到尾亲手走过。核对过的：官方编好的包（v16.15.3）是没签名的 arm64 真机包，Bundle ID 是 `com.facebook.WebDriverAgentRunner.xctrunner`，支持 iOS 13 及以上。用 Sideloadly 给 WDA 签名是很常见的做法，下面哪一步对不上，欢迎提 issue 告诉我们。
+- **iTunes**，从苹果官网下（[64 位安装包](https://www.apple.com/itunes/download/win64)）。Windows 认 iPhone 要的驱动（Apple Mobile Device Support）是它带进来的
+- **[Sideloadly](https://sideloadly.io)**。它的下载页还挂着 iCloud 的链接。我们那台电脑上 iCloud 一直装不上（Error 1722），没有它，下面每一步照样通了
+- **Python 3**，装好后 `pip install pymobiledevice3`
 
-1. **不用编译，直接拿 WDA**：到 [WebDriverAgent 的 Releases 页](https://github.com/appium/WebDriverAgent/releases)下载 `WebDriverAgentRunner-Runner.zip`，解压得到 `WebDriverAgentRunner-Runner.app`
-2. **打成 .ipa**：新建一个名叫 `Payload` 的文件夹，把 `.app` 放进去，把 `Payload` 文件夹压缩成 zip，再把后缀 `.zip` 改成 `.ipa`。Windows 上用系统自带的 `tar` 来压：在 `Payload` 所在的文件夹里打开终端，跑 `tar -a -c -f WDA.zip Payload`。别用 PowerShell 的 `Compress-Archive`：Windows 自带的那版（PowerShell 5.1）打出来的 zip，里面的路径是反斜杠，不是合法的 .ipa。两种我们在 Windows 11 上都看过：`tar` 打出来是 `Payload/...`，`Compress-Archive` 打出来是 `Payload\...`
-3. **签名并安装**：打开 [Sideloadly](https://sideloadly.io)（Windows/Mac），iPhone 插线，选这个 .ipa，填你的 Apple ID。用免费 Apple ID 签名，Bundle ID 一般会被改掉，Sideloadly 的 Advanced options 里能看到、也能自己指定。手机上最后装进去的那个就是你的 `WDA_BUNDLE_ID`（插着线跑 `python3 -m pymobiledevice3 apps list` 能查到）
-4. **手机上**：设置 → 通用 → VPN与设备管理 → 信任你的开发者证书。再到 设置 → 隐私与安全性 → 开发者模式 → 打开，重启。开发者模式这个开关要装过一个侧载的 App 才会出现
-5. **iOS 17 及以上，挂载开发者磁盘镜像**：启动 WDA 要用它。有 Mac 的人是 Xcode 悄悄替他们挂的，所以主教程里没提。没有 Xcode 就插着线跑 `python3 -m pymobiledevice3 mounter auto-mount`（pymobiledevice3 在 Windows 上也能跑；它要下载镜像，得联网）。手机一重启镜像就没了，重启后再跑一次
-6. **启动本项目的 MCP 服务器**（VPS 或这台电脑上），调 `wda_start()`。在 VPS 上照上面[「VPS 部署」](#vps-部署方案不需要-mac-一直开着)一节。头一回建隧道，手机要接受这台机器的配对，见上面配对记录那条说明。也可以插着线用 [`go-ios runwda`](https://github.com/danielpaulus/go-ios) 启动
-7. **每 7 天**：用 Sideloadly 重签一次，两分钟
+iPhone 插上线、解锁，手机问「要信任此电脑吗」的时候点**信任**。
 
-> 免费 Apple ID 的签名 7 天过期。用电脑重签，别用手机上的自签工具，可能让 Apple ID 被限制。
+#### 步骤
+
+1. **下载 WDA。** 到 [WebDriverAgent 的 Releases 页](https://github.com/appium/WebDriverAgent/releases)下载 `WebDriverAgentRunner-Runner.zip`，解压得到 `WebDriverAgentRunner-Runner.app`。在 Windows 上它就是一个普通文件夹。
+
+2. **删掉调试符号。** 进这个文件夹，把 `PlugIns\WebDriverAgentRunner.xctest.dSYM` 整个文件夹删掉。里面只是查崩溃用的符号，WDA 跑起来用不着它。不删的话，Sideloadly 会停在[报错 Sideloading failed](#报错-sideloading-failed)里那段报错上。
+
+3. **打成 .ipa。** 新建一个名叫 `Payload` 的文件夹，把 `WebDriverAgentRunner-Runner.app` 放进去。在 `Payload` 所在的文件夹里打开终端，跑：
+
+   ```
+   tar -a -c -f WDA.zip Payload
+   ```
+
+   再把 `WDA.zip` 改名成 `WDA.ipa`。用 Windows 自带的 `tar`。别用 PowerShell 的 `Compress-Archive`：Windows 自带的那版（PowerShell 5.1）打出来的 zip，里面的路径是反斜杠，不是合法的 .ipa。
+
+4. **用 Sideloadly 签名、安装。** 打开 Sideloadly，**iDevice** 那一行应该已经显示你的 iPhone。点左边那个大的 IPA 图标，选 `WDA.ipa`，填你的 Apple ID，按 **Start**。Sideloadly 会先要 Apple ID 的密码，再要双重认证的验证码。底下那行出现 **Done**，WDA 就在手机上了。我们从按 Start 到 Done 不到半分钟。
+
+   直接用你平时的 Apple ID 就行。不想把它的密码填进第三方工具的话，可以另外注册一个 Apple ID 专门干这个。两种都行，下面是我们看到的、账号上会发生的事：
+   - Sideloadly 的密码框上写着：密码只发给 Apple 的服务器；不支持 App 专用密码
+   - 账号里会多出一台设备（Sideloadly 对 Apple 自称是一台 MacBook Pro）
+   - 免费账号有 10 个 App ID 的额度，这次安装用掉一个
+   - 签名 7 天过期
+
+5. **手机上。** 设置 → 通用 → VPN与设备管理 → 点「开发者 App」底下你的 Apple ID → 信任 → 允许。再到 设置 → 隐私与安全性 → 开发者模式 → 打开，按提示重启。开发者模式这个开关要装过一个侧载的 App 才会出现。
+
+6. **查 Bundle ID。** 用免费账号签名时，Sideloadly 会给 App 改名：在原来的 `com.facebook.WebDriverAgentRunner.xctrunner` 后面加一个点和你那 10 位的 team ID。插着线跑：
+
+   ```
+   pymobiledevice3 apps list -t User | findstr xctrunner
+   ```
+
+   看 `CFBundleIdentifier` 那一行的值，长得像 `com.facebook.WebDriverAgentRunner.xctrunner.AB12CD34EF`。
+
+7. **iOS 17 及以上：挂载开发者磁盘镜像。**
+
+   ```
+   pymobiledevice3 mounter auto-mount
+   ```
+
+   启动 WDA 要用它。这条命令要下载镜像，电脑得联网。手机一重启镜像就没了，重启后再跑一次。
+
+8. **启动 WDA。** 用「以管理员身份运行」打开一个终端，换成你在第 6 步查到的 Bundle ID：
+
+   ```
+   pymobiledevice3 developer dvt xcuitest com.facebook.WebDriverAgentRunner.xctrunner.AB12CD34EF
+   ```
+
+   这个窗口别关。命令在跑，WDA 才活着：我们把它停掉，半分钟之内 WDA 就没了。iOS 17 及以上，连手机的隧道它会自己搭。
+
+9. **验一下。** 查手机的 WiFi 地址（设置 → 无线局域网 → 你连的那个网络旁边的 ⓘ）。在同一个 WiFi 下的任何一台电脑上打开 `http://<手机地址>:8100/status`，应该看到 `"WebDriverAgent is ready to accept commands"`。
+
+10. **让本项目的 MCP 服务器连上它。** 在 `.env` 里，把 `WDA_BUNDLE_ID` 填成第 6 步查到的那个，`WDA_WIFI_IP` 填手机的地址。服务器跑在哪台机器上都行，只要它够得着手机的 8100 端口。放在 VPS 上的话，第 8 步换成 `wda_start()` 走 Tailscale 启动，见[「VPS 部署」](#vps-部署方案不需要-mac-一直开着)。
+
+11. **每 7 天**，打开 Sideloadly，用同一个 .ipa 和 Apple ID 再按一次 Start，然后重新启动 WDA（第 8 步）。
+
+> 用电脑重签。别用手机上的自签工具，可能让 Apple ID 被限制。
 
 一台电脑都没有、只有手机和 VPS：免费这条路走不通，没有东西能替你签名、安装。剩下的是方案 B，找那种给安装链接、在手机上直接点开装的签名服务。这条我们没试过。
+
+### 报错 Sideloading failed
+
+```
+Sideloading failed!
+Install failed: Guru Meditation ...
+Failed to process app binary (code -69): SignBinary(Payload/WebDriverAgentRunner-Runner.app/PlugIns/WebDriverAgentRunner.xctest.dSYM/Contents/Resources/DWARF/WebDriverAgentRunner): macho sign/edit failed (-40)
+```
+
+这是我们头一回按 Start 时 Sideloadly 0.72 报的。官方编好的包里带着一个 `.dSYM` 文件夹，Sideloadly 想给里面那个文件也签名，签不了。这跟你的电脑、你的 Apple ID 都没关系：这段报错出来的时候，登录已经过了。把 `PlugIns\WebDriverAgentRunner.xctest.dSYM` 删掉（第 2 步），重新打 .ipa（第 3 步），选新的文件再按 Start。
+
+### 我们验过什么
+
+2026-11-20 从头到尾走通的：
+
+- Windows 11，iTunes 12.13（Apple Mobile Device Support 20.0），Sideloadly 0.72，Python 3.13，pymobiledevice3 11.61.0
+- iPhone XS，iOS 18.5，开了双重认证的免费 Apple ID
+- 官方编好的 WDA 包，v16.15.3
+- 第 8 步之后 `/status` 回了 ready；隔着 WiFi 发一条「回主屏幕」，手机真的回到了主屏幕
+
+还没验的：
+
+- Windows 上的第 7 步。我们那台测试机上镜像本来就挂着（当天早些时候它连过 Mac），所以 `mounter auto-mount` 是上面唯一一条我们没在 Windows 上亲手跑过的命令
+- 第 5 步里打开开发者模式。我们那台测试机上它本来就开着
+- 不用管理员终端跑第 8 步
+- 在 Windows 上跑 `server.py`。服务器我们自己只在 macOS 上跑过
+- Sideloadly 的自动续签。它官网说有个后台程序每隔几天自动重签，我们装完后它显示「updates 6d」。我们让它一直开着，它有没有自己续上，到时候写在这里
+- 这条路上的 iOS 26 和 27。有 Mac 的那条路，iOS 18.5 和 iOS 26.4 都验过
+
+哪一步在你的机器上对不上，欢迎提 issue 告诉我们。
 
 ### 方案 B：买签名证书
 
@@ -842,10 +933,10 @@ A：`wda_status` 会把 Xcode 日志里常见的原因翻成一句话：证书�
 
 ### 给没有 Mac 的人的工具
 
-- **[go-ios](https://github.com/danielpaulus/go-ios)**：装 App、启动 WDA、转发端口，Linux/Windows/macOS 都能用
-- **[pymobiledevice3](https://github.com/doronz88/pymobiledevice3)**：跟设备通信、挂载开发者磁盘镜像、转发端口，Python，全平台
-- **[Sideloadly](https://sideloadly.io)**：Windows/macOS 上签名、安装 IPA 的图形工具，免费账号重签也用它
-- **[ideviceinstaller](https://github.com/libimobiledevice/ideviceinstaller)**：Linux 上的命令行 IPA 安装器
+- **[Sideloadly](https://sideloadly.io)**：Windows/macOS 上用免费账号签名、安装 IPA。上面的步骤用的就是它
+- **[pymobiledevice3](https://github.com/doronz88/pymobiledevice3)**：跟设备通信、挂载开发者磁盘镜像、启动 WDA，Python，全平台。上面的步骤用的就是它
+- **[go-ios](https://github.com/danielpaulus/go-ios)**：装 App、启动 WDA（`ios runwda`）、转发端口，Linux/Windows/macOS 都能用。我们没试过
+- **[ideviceinstaller](https://github.com/libimobiledevice/ideviceinstaller)**：Linux 上的命令行 IPA 安装器。我们没试过
 
 > **一句话**：从头到尾不需要 Mac。需要一台带 USB 口的电脑给 WDA 签名、安装，头一回一次，之后免费账号每 7 天一次。别的哪个平台都能跑。
 
