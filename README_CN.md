@@ -80,9 +80,26 @@ Codex 的出处：[Codex MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)�
 | **LM Studio / Open WebUI** | LM Studio：本地和远程都行。Open WebUI：只收 streamable HTTP | 没核 | 跑本地模型用 |
 | **BoltAI**（iOS） | 只能远程 | 没核 | 一个能填远程 MCP 服务器的手机 App。它的文档要的是 SSE |
 
-DeepSeek、Kimi、豆包、通义千问、智谱清言、腾讯元宝的聊天 App：没找到官方文档说可以加自己的 MCP 服务器。
-
 出处：[Gemini 帮助](https://support.google.com/gemini/answer/17209137)、[Gemini Spark 2026 年 6 月更新](https://blog.google/innovation-and-ai/products/gemini-app/gemini-spark-updates-june-2026/)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)、[Le Chat MCP 连接器](https://docs.mistral.ai/le-chat/knowledge-integrations/connectors/mcp-connectors)、[Grok 连接器](https://x.ai/news/grok-connectors)、[Perplexity](https://www.perplexity.ai/help-center/en/articles/11502712-local-and-remote-mcps-for-perplexity)、[VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)、[Cursor](https://cursor.com/docs/context/mcp)、[LM Studio](https://lmstudio.ai/docs/app/mcp)、[Open WebUI](https://docs.openwebui.com/features/extensibility/mcp)、[BoltAI](https://docs.boltai.com/docs/boltai-mobile/mcp-servers)。
+
+### 国产模型怎么接
+
+只对过文档。你的模型账号在 DeepSeek、Kimi、千问、豆包、智谱这几家的话，入口是下面这些。
+
+| 入口 | 接自己的 MCP 服务器 | 备注 |
+|------|--------------------|------|
+| **Cherry Studio**（桌面、iOS、Android） | 桌面：stdio 和远程都行。手机 App：填远程地址，带鉴权请求头 | 开源。模型用你自己的 API Key。手机上就能接 |
+| **Chatbox** | 桌面支持 MCP。远程服务器的 OAuth 是 2026 年 9 月加的 | 手机 App 没查到 |
+| **DeepChat**（桌面） | Streamable HTTP、SSE、stdio | 服务商里列着 DeepSeek、Moonshot、DashScope |
+| **扣子（Coze）** | 只能远程：streamable HTTP 或 SSE | 在网页或桌面端新建，手机 App 可以用已经加好的 |
+| **豆包工作** / **千问办公**（桌面客户端） | 豆包工作：HTTP 或 stdio。千问办公：streamable HTTP、SSE、stdio | 这两个是各家的办公客户端，不是聊天 App |
+| **智谱 BigModel** 托管智能体 | 远程 streamable HTTP | 工具默认直接放行，可以改成每次询问 |
+| **阿里云百炼** | 远程 HTTP | |
+| **编程工具**：Kimi Code CLI、Qwen Code、Trae、Qoder / 通义灵码、CodeBuddy、文心快码 Comate、MiniMax Code | 都能接 MCP 服务器，多数 stdio 和远程都收 | |
+
+DeepSeek、Kimi、豆包、千问、智谱清言、腾讯元宝、文小言这些聊天 App 本身：没找到能填自己 MCP 服务器的地方。没找到，不等于官方说不支持。
+
+出处：[Cherry Studio App](https://github.com/CherryHQ/cherry-studio-app)、[Cherry Studio MCP 文档](https://github.com/CherryHQ/cherry-studio-docs/blob/main/advanced-basic/mcp/config.md)、[Chatbox MCP](https://docs.chatboxai.app/guides/mcp.md)、[Chatbox 更新日志](https://chatboxai.app/en/help-center/changelog)、[DeepChat](https://github.com/ThinkInAIXYZ/deepchat)、[扣子](https://docs.coze.cn/mcp)、[豆包工作](https://www.doubao.com/work/docs/zh-cn/articles/705018132598-plugins)、[千问办公](https://help.aliyun.com/zh/qwenwork/qw-connectors)、[智谱](https://docs.bigmodel.cn/cn/managed-agents/mcp.md)、[百炼](https://help.aliyun.com/zh/model-studio/custom-mcp)、[Kimi Code CLI](https://www.kimi.com/code/docs/kimi-code-cli/customization/mcp.html)、[Trae](https://docs.trae.cn/ide/model-context-protocol)、[Qoder](https://docs.qoder.com/user-guide/chat/model-context-protocol.md)、[CodeBuddy](https://cloud.tencent.com/document/product/1831/134521)、[文心快码](https://cloud.baidu.com/doc/COMATE/s/3msr9pbuy)、[MiniMax Code](https://agent.minimax.io/docs/code/agents/mcp.md)、[Qwen Code](https://qwenlm.github.io/qwen-code-docs/zh/users/features/mcp/)。
 
 ## 工具（共 22 个，按组加载）
 

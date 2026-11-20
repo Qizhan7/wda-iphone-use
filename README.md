@@ -80,9 +80,26 @@ This table is from documentation only.
 | **LM Studio / Open WebUI** | LM Studio: local and remote. Open WebUI: streamable HTTP only | Not checked | For local models |
 | **BoltAI** (iOS) | Remote only | Not checked | A phone app that takes a remote MCP server. Its docs ask for SSE |
 
-For the chat apps of DeepSeek, Kimi, Doubao, Tongyi Qianwen, Zhipu Qingyan and Tencent Yuanbao, we found no official documentation for adding your own MCP server.
-
 Sources: [Gemini help](https://support.google.com/gemini/answer/17209137), [Gemini Spark, June 2026](https://blog.google/innovation-and-ai/products/gemini-app/gemini-spark-updates-june-2026/), [Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md), [Le Chat MCP connectors](https://docs.mistral.ai/le-chat/knowledge-integrations/connectors/mcp-connectors), [Grok connectors](https://x.ai/news/grok-connectors), [Perplexity](https://www.perplexity.ai/help-center/en/articles/11502712-local-and-remote-mcps-for-perplexity), [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers), [Cursor](https://cursor.com/docs/context/mcp), [LM Studio](https://lmstudio.ai/docs/app/mcp), [Open WebUI](https://docs.openwebui.com/features/extensibility/mcp), [BoltAI](https://docs.boltai.com/docs/boltai-mobile/mcp-servers).
+
+### Clients for Chinese models
+
+From documentation only. If your model account is with DeepSeek, Kimi, Qwen, Doubao or Zhipu, these are the ways in.
+
+| Entry | Your own MCP server | Notes |
+|-------|---------------------|-------|
+| **Cherry Studio** (desktop, iOS, Android) | Desktop: stdio and remote. Phone app: a remote address with auth headers | Open source. You bring your own model API key. Works from a phone |
+| **Chatbox** | Desktop supports MCP. OAuth for remote servers was added in September 2026 | Phone app: not found |
+| **DeepChat** (desktop) | Streamable HTTP, SSE, stdio | Lists DeepSeek, Moonshot and DashScope among its providers |
+| **Coze** (扣子) | Remote only: streamable HTTP or SSE | Create the connection on web or desktop. The phone app can use ones that are already added |
+| **Doubao Work** (豆包工作) / **QwenWork** (千问办公), desktop | Doubao Work: HTTP or stdio. QwenWork: streamable HTTP, SSE, stdio | These are the vendors' work clients, not their chat apps |
+| **Zhipu BigModel** managed agents | Remote streamable HTTP | Tools are allowed by default and can be set to ask each time |
+| **Alibaba Cloud Model Studio** (百炼) | Remote HTTP | |
+| **Coding tools**: Kimi Code CLI, Qwen Code, Trae, Qoder, CodeBuddy, Comate, MiniMax Code | All take MCP servers. Most accept both stdio and remote | |
+
+For the plain chat apps of DeepSeek, Kimi, Doubao, Qwen, Zhipu Qingyan, Tencent Yuanbao and Wenxiaoyan, we did not find a place to enter your own MCP server. Not found is not the same as officially unsupported.
+
+Sources: [Cherry Studio app](https://github.com/CherryHQ/cherry-studio-app), [Cherry Studio MCP docs](https://github.com/CherryHQ/cherry-studio-docs/blob/main/advanced-basic/mcp/config.md), [Chatbox MCP](https://docs.chatboxai.app/guides/mcp.md), [Chatbox changelog](https://chatboxai.app/en/help-center/changelog), [DeepChat](https://github.com/ThinkInAIXYZ/deepchat), [Coze](https://docs.coze.cn/mcp), [Doubao Work](https://www.doubao.com/work/docs/zh-cn/articles/705018132598-plugins), [QwenWork](https://help.aliyun.com/zh/qwenwork/qw-connectors), [Zhipu](https://docs.bigmodel.cn/cn/managed-agents/mcp.md), [Model Studio](https://help.aliyun.com/zh/model-studio/custom-mcp), [Kimi Code CLI](https://www.kimi.com/code/docs/kimi-code-cli/customization/mcp.html), [Trae](https://docs.trae.cn/ide/model-context-protocol), [Qoder](https://docs.qoder.com/user-guide/chat/model-context-protocol.md), [CodeBuddy](https://cloud.tencent.com/document/product/1831/134521), [Comate](https://cloud.baidu.com/doc/COMATE/s/3msr9pbuy), [MiniMax Code](https://agent.minimax.io/docs/code/agents/mcp.md), [Qwen Code](https://qwenlm.github.io/qwen-code-docs/zh/users/features/mcp/).
 
 ## Tools (22 total, loadable by group)
 
