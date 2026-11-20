@@ -15,7 +15,7 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | **Claude Code / Claude Desktop** | `server.py` stdio | 本地 MCP，最稳。 |
 | **claude.ai 网页聊天** | `server.py --http` + HTTPS tunnel | 免费版可用 1 个自定义 MCP 连接器，适合自然语言控手机。 |
 | **Codex** | `server.py` stdio | 需要把 `wda` 加进 Codex 的 MCP 配置。 |
-| **ChatGPT 网页版 / 手机浏览器网页版** | `server_chatgpt.py` + HTTPS `/mcp` | 先弄清你的计划能不能调用写工具，见[平台兼容性](#平台兼容性)。配置步骤在 [`CHATGPT_CN.md`](CHATGPT_CN.md)。 |
+| **ChatGPT 网页版 / 手机浏览器网页版** | `server_chatgpt.py` + HTTPS `/mcp` | 先弄清你的计划能不能调用写工具，见[客户端要会什么](#客户端要会什么)。配置步骤在 [`CHATGPT_CN.md`](CHATGPT_CN.md)。 |
 | **ChatGPT iOS/Android 原生 App** | 没确认 | OpenAI 的帮助页说自定义 MCP 服务器只能在网页上连接。在网页上加好以后 App 里能不能用，2026 年 4 月之后我们没重测。 |
 
 > Claude 已经跑通的用户不用改配置。ChatGPT 单独走 `server_chatgpt.py`，不要和 Claude 的原路线混在一起。
@@ -31,75 +31,16 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 
 WDA 在 8100 端口应声以后，MCP 服务器和上面那些客户端连它的方式都一样。
 
-## 平台兼容性
+## 客户端要会什么
 
-wda-mcp 要的客户端得会两件事：能加你自己的 MCP 服务器，能调用会动手的工具。点击、输入、滑动都算「写」工具。只让用读取类工具的客户端，看得见屏幕，碰不了它。
+哪个 MCP 客户端都行，只要它会两件事：能加你自己的 MCP 服务器，能调用会动手的工具。点击、输入、滑动都算「写」工具。只让用读取类工具的客户端，看得见屏幕，碰不了它。
 
-下面是 2026-11-20 对着各家自己的文档核的。前几列写的是它们的帮助页现在怎么说；「我们试过」是我们上一次亲手用这个客户端控手机的月份，「—」是我们手里没有自己的实测。这一块变得很快，哪一行过时了，欢迎提 issue。
+- **本地客户端**走 stdio：`server.py`。
+- **远程客户端**连 HTTP 模式：streamable HTTP，地址 `/mcp`，带 OAuth 或 Bearer token。只收 SSE 的客户端直接连不上。
 
-服务器对本地客户端走 stdio。HTTP 模式是 streamable HTTP，地址 `/mcp`，带 OAuth 和 Bearer 鉴权，所以只收 SSE 的客户端直接连不上。
+我们自己亲手控过手机的：Claude Code（最近一次 2026-11）、claude.ai 网页（2026-04）、ChatGPT 网页（2026-04，Plus）。
 
-### Anthropic（Claude）
-
-| 产品 | 接自己的 MCP 服务器 | 写工具 | 计划 | 我们试过 |
-|------|--------------------|--------|------|----------|
-| **claude.ai**（网页） | 远程 HTTPS，加成自定义连接器 | ✅ | 免费版起。免费版只能加 1 个自定义连接器 | 2026-04 |
-| **Claude Desktop** | 远程同网页。本地走桌面扩展或 `claude_desktop_config.json` | ✅ | 远程连接器和桌面扩展免费版起 | — |
-| **Claude Code**（命令行） | stdio 和 HTTP | ✅ 会弹权限确认 | Pro 起，或 API 账号 | 2026-11 |
-| **Claude iOS / Android** | 在网页或桌面加好的连接器，App 里会出现。直接在手机上添加还在 beta | 文档没说 | — | — |
-| **Cowork** | 远程连接器；本地会话里还能用本地 MCP | ✅ | Pro 起 | — |
-
-出处：[用远程 MCP 加自定义连接器](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)、[使用连接器](https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)。
-
-### OpenAI（ChatGPT / Codex）
-
-| 产品 | 接自己的 MCP 服务器 | 写工具 | 我们试过 |
-|------|--------------------|--------|----------|
-| **ChatGPT 网页版** | 远程 HTTPS，从 Plugins → + → Add custom MCP server 添加 | 哪些计划有写工具，OpenAI 自己的页面说法不一，见下 | 2026-04 用 Plus：读写都通。之后没重测 |
-| **手机浏览器打开 ChatGPT 网页版** | 同网页版，本质上就是网页 | 同网页版 | — |
-| **ChatGPT iOS / Android App** | 文档原话："Can I connect custom MCP servers on mobile? No - web only." | — | 2026-04：只读工具能加载，写操作被拒。之后没重测 |
-| **Codex CLI / ChatGPT 桌面 App / IDE 扩展** | stdio 和 streamable HTTP | 文档没提限制 | — |
-
-**走 ChatGPT 这条路之前，先弄清你的计划能不能调用写工具。** OpenAI 自己的几个页面眼下说法不一致。[开发者文档](https://developers.openai.com/api/docs/guides/developer-mode)写的是 "ChatGPT supports both read and write tools from your server"，没提哪个计划。OpenAI 的员工 2026-10-01 在论坛说，现在不用开 Developer Mode，"all eligible users can now connect custom MCP servers to ChatGPT"（[帖子](https://community.openai.com/t/developer-mode-missing-from-security-login-on-chatgpt-pro/1402157)），没说哪些计划算 eligible。帮助页 [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461)（2026 年 10 月底更新）写的是 "Full MCP is only available to Business and Enterprise/Edu users, currently. Pro users can connect custom MCP servers with read/fetch permissions."。个人计划的用户两种结果都有人报。我们自己的结果是 2026 年 4 月的，那时 Plus 账号能调用写工具，之后没有重测。最快的验法：把服务器接上，让 ChatGPT 把手机按回主屏幕（`wda_home`）。这一下被拒，你的计划就是只读，ChatGPT 看得见手机、控不了它。两种结果你验出了哪一种，欢迎提 issue 告诉我们计划和日期。
-
-Codex 的出处：[Codex MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
-
-### 其他 MCP 客户端
-
-这张表只对过文档。
-
-| 产品 | 接自己的 MCP 服务器 | 写工具 | 备注 |
-|------|--------------------|--------|------|
-| **Gemini CLI** | stdio、SSE、streamable HTTP | ✅ 默认每次调用前确认 | |
-| **Gemini App**（网页和手机） | 只能填远程地址 | ✅ 每个写操作都要手动确认 | 自定义 MCP 是 2026 年 6 月进 Gemini Spark 的。仅限美国、18 岁以上、个人账号、英文 |
-| **Mistral Le Chat** | 远程，无鉴权、Bearer token、OAuth 2.1 都行 | ✅ | 免费账号可以加连接器 |
-| **Grok**（网页、iOS、Android） | 远程。服务器得能从公网访问 | 文档对自定义服务器没说清 | 连接器 2026 年 5 月上线 |
-| **Perplexity** | 远程 HTTPS | 文档没说 | |
-| **VS Code（Copilot）/ Cursor** | stdio 和远程 | ✅ 要批准 | |
-| **Windsurf / Cline** | ✅ | ✅ | 沿用我们 2026 年 4 月的表，这次没重读 |
-| **LM Studio / Open WebUI** | LM Studio：本地和远程都行。Open WebUI：只收 streamable HTTP | 没核 | 跑本地模型用 |
-| **BoltAI**（iOS） | 只能远程 | 没核 | 一个能填远程 MCP 服务器的手机 App。它的文档要的是 SSE |
-
-出处：[Gemini 帮助](https://support.google.com/gemini/answer/17209137)、[Gemini Spark 2026 年 6 月更新](https://blog.google/innovation-and-ai/products/gemini-app/gemini-spark-updates-june-2026/)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)、[Le Chat MCP 连接器](https://docs.mistral.ai/le-chat/knowledge-integrations/connectors/mcp-connectors)、[Grok 连接器](https://x.ai/news/grok-connectors)、[Perplexity](https://www.perplexity.ai/help-center/en/articles/11502712-local-and-remote-mcps-for-perplexity)、[VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)、[Cursor](https://cursor.com/docs/context/mcp)、[LM Studio](https://lmstudio.ai/docs/app/mcp)、[Open WebUI](https://docs.openwebui.com/features/extensibility/mcp)、[BoltAI](https://docs.boltai.com/docs/boltai-mobile/mcp-servers)。
-
-### 国产模型怎么接
-
-只对过文档。你的模型账号在 DeepSeek、Kimi、千问、豆包、智谱这几家的话，入口是下面这些。
-
-| 入口 | 接自己的 MCP 服务器 | 备注 |
-|------|--------------------|------|
-| **Cherry Studio**（桌面、iOS、Android） | 桌面：stdio 和远程都行。手机 App：填远程地址，带鉴权请求头 | 开源。模型用你自己的 API Key。手机上就能接 |
-| **Chatbox** | 桌面支持 MCP。远程服务器的 OAuth 是 2026 年 9 月加的 | 手机 App 没查到 |
-| **DeepChat**（桌面） | Streamable HTTP、SSE、stdio | 服务商里列着 DeepSeek、Moonshot、DashScope |
-| **扣子（Coze）** | 只能远程：streamable HTTP 或 SSE | 在网页或桌面端新建，手机 App 可以用已经加好的 |
-| **豆包工作** / **千问办公**（桌面客户端） | 豆包工作：HTTP 或 stdio。千问办公：streamable HTTP、SSE、stdio | 这两个是各家的办公客户端，不是聊天 App |
-| **智谱 BigModel** 托管智能体 | 远程 streamable HTTP | 工具默认直接放行，可以改成每次询问 |
-| **阿里云百炼** | 远程 HTTP | |
-| **编程工具**：Kimi Code CLI、Qwen Code、Trae、Qoder / 通义灵码、CodeBuddy、文心快码 Comate、MiniMax Code | 都能接 MCP 服务器，多数 stdio 和远程都收 | |
-
-DeepSeek、Kimi、豆包、千问、智谱清言、腾讯元宝、文小言这些聊天 App 本身：没找到能填自己 MCP 服务器的地方。没找到，不等于官方说不支持。
-
-出处：[Cherry Studio App](https://github.com/CherryHQ/cherry-studio-app)、[Cherry Studio MCP 文档](https://github.com/CherryHQ/cherry-studio-docs/blob/main/advanced-basic/mcp/config.md)、[Chatbox MCP](https://docs.chatboxai.app/guides/mcp.md)、[Chatbox 更新日志](https://chatboxai.app/en/help-center/changelog)、[DeepChat](https://github.com/ThinkInAIXYZ/deepchat)、[扣子](https://docs.coze.cn/mcp)、[豆包工作](https://www.doubao.com/work/docs/zh-cn/articles/705018132598-plugins)、[千问办公](https://help.aliyun.com/zh/qwenwork/qw-connectors)、[智谱](https://docs.bigmodel.cn/cn/managed-agents/mcp.md)、[百炼](https://help.aliyun.com/zh/model-studio/custom-mcp)、[Kimi Code CLI](https://www.kimi.com/code/docs/kimi-code-cli/customization/mcp.html)、[Trae](https://docs.trae.cn/ide/model-context-protocol)、[Qoder](https://docs.qoder.com/user-guide/chat/model-context-protocol.md)、[CodeBuddy](https://cloud.tencent.com/document/product/1831/134521)、[文心快码](https://cloud.baidu.com/doc/COMATE/s/3msr9pbuy)、[MiniMax Code](https://agent.minimax.io/docs/code/agents/mcp.md)、[Qwen Code](https://qwenlm.github.io/qwen-code-docs/zh/users/features/mcp/)。
+**用 ChatGPT 的话，先弄清你的计划能不能调用写工具。** 这件事 OpenAI 自己的页面眼下说法不一：[开发者文档](https://developers.openai.com/api/docs/guides/developer-mode)说读写工具都支持，帮助页 [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461) 说完整的 MCP 只给 Business 和 Enterprise/Edu，Pro 只有读取。最快的验法：把服务器接上，让 ChatGPT 把手机按回主屏幕（`wda_home`）。这一下被拒，你的计划就是只读。
 
 ## 工具（共 22 个，按组加载）
 
