@@ -821,7 +821,7 @@ A：`wda_status` 会把 Xcode 日志里常见的原因翻成一句话：证书�
 > 我们自己用的是 Mac，这条路没有从头到尾亲手走过。核对过的：官方编好的包（v16.15.3）是没签名的 arm64 真机包，Bundle ID 是 `com.facebook.WebDriverAgentRunner.xctrunner`，支持 iOS 13 及以上。用 Sideloadly 给 WDA 签名是很常见的做法，下面哪一步对不上，欢迎提 issue 告诉我们。
 
 1. **不用编译，直接拿 WDA**：到 [WebDriverAgent 的 Releases 页](https://github.com/appium/WebDriverAgent/releases)下载 `WebDriverAgentRunner-Runner.zip`，解压得到 `WebDriverAgentRunner-Runner.app`
-2. **打成 .ipa**：新建一个名叫 `Payload` 的文件夹，把 `.app` 放进去，把 `Payload` 文件夹压缩成 zip，再把后缀 `.zip` 改成 `.ipa`
+2. **打成 .ipa**：新建一个名叫 `Payload` 的文件夹，把 `.app` 放进去，把 `Payload` 文件夹压缩成 zip，再把后缀 `.zip` 改成 `.ipa`。Windows 上用系统自带的 `tar` 来压：在 `Payload` 所在的文件夹里打开终端，跑 `tar -a -c -f WDA.zip Payload`。别用 PowerShell 的 `Compress-Archive`：Windows 自带的那版（PowerShell 5.1）打出来的 zip，里面的路径是反斜杠，不是合法的 .ipa。两种我们在 Windows 11 上都看过：`tar` 打出来是 `Payload/...`，`Compress-Archive` 打出来是 `Payload\...`
 3. **签名并安装**：打开 [Sideloadly](https://sideloadly.io)（Windows/Mac），iPhone 插线，选这个 .ipa，填你的 Apple ID。用免费 Apple ID 签名，Bundle ID 一般会被改掉，Sideloadly 的 Advanced options 里能看到、也能自己指定。手机上最后装进去的那个就是你的 `WDA_BUNDLE_ID`（插着线跑 `python3 -m pymobiledevice3 apps list` 能查到）
 4. **手机上**：设置 → 通用 → VPN与设备管理 → 信任你的开发者证书。再到 设置 → 隐私与安全性 → 开发者模式 → 打开，重启。开发者模式这个开关要装过一个侧载的 App 才会出现
 5. **iOS 17 及以上，挂载开发者磁盘镜像**：启动 WDA 要用它。有 Mac 的人是 Xcode 悄悄替他们挂的，所以主教程里没提。没有 Xcode 就插着线跑 `python3 -m pymobiledevice3 mounter auto-mount`（pymobiledevice3 在 Windows 上也能跑；它要下载镜像，得联网）。手机一重启镜像就没了，重启后再跑一次
