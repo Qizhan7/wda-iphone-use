@@ -747,11 +747,11 @@ python server.py --http
 2. （可选）在 Tailscale app 里选择 VPS 作为 exit node → 减少额外 VPN/代理冲突
 3. 保持 WiFi 按钮蓝色（开着）
 
-### WDA 首次编译（唯一需要 Mac 的地方）
+### 把 WDA 装进手机（唯一要插线的地方）
 
-在 Mac 上用 Xcode 编译并安装 WDA 到 iPhone（只需要做一次）。之后 VPS 可以远程启动/控制 WDA，Mac 不用再开。
+WDA 得签名、装进 iPhone 一次，这一步要一台能插手机的电脑，VPS 做不了。有 Mac 就照前面的主教程用 Xcode；没有 Mac，用 Windows 电脑也行，而且不用自己编译，见下面[「没有 Mac」](#没有-mac)一节。装好以后 VPS 可以远程启动、控制 WDA，那台电脑不用再开。
 
-每 7 天需要续签证书：可以在 Mac 上手动跑 `wda_renew`，或者用 GitHub Actions 自动续签（见下面 "没有 Mac" 部分）。
+免费 Apple ID 的签名 7 天过期，到期要重签一次：Mac 上跑 `wda_renew`，Windows 上用 Sideloadly 再签一遍。
 
 ## 架构
 
@@ -799,6 +799,55 @@ A：隧道启动的条件不齐，最常见的是没配免密 sudo。只在家�
 
 **Q：`wda_status` 说连不上，我该看哪儿？**
 A：`wda_status` 会把 Xcode 日志里常见的原因翻成一句话：证书还没在手机上点信任、Xcode 没登录 Apple 账号、签名过期、手机锁屏、Xcode 看不见手机。完整日志在 `/tmp/wda_run.log`。
+
+## 没有 Mac
+
+主教程默认你有 macOS + Xcode。没有 Mac 也能用，只是装 WDA 那一步换个法子。
+
+### 哪一步需要 Mac
+
+哪一步都不需要。需要的是一台能插 iPhone 的电脑，用来给 WDA 签名、装进手机，Windows 就够。VPS 做不了这一步，它没有 USB 口，碰不到手机。
+
+| 步骤 | 需要 Mac 吗 | 没有 Mac 怎么办 |
+|------|:---:|-------------|
+| 编译 WDA | 不需要 | 跳过。Appium 每个版本都发一个编好的真机包：[WebDriverAgent 的 Releases 页](https://github.com/appium/WebDriverAgent/releases)里的 `WebDriverAgentRunner-Runner.zip`，没签名 |
+| 签名、装进手机 | 不需要 | Windows 上用 [Sideloadly](https://sideloadly.io)，插线，用你自己的 Apple ID |
+| 启动 WDA | 不需要 | 本项目的隧道启动（在 VPS 或电脑上调 `wda_start()`），或者 [`go-ios runwda`](https://github.com/danielpaulus/go-ios)（Linux/Windows 都能跑） |
+| 通过 HTTP 控制 | 不需要 | 哪个平台都行，就是往 8100 端口发请求 |
+| 7 天续签 | 不需要 | 用 Sideloadly 重签，或者每年 99 美元买开发者账号，证书管一年 |
+
+### 方案 A：免费，每 7 天用电脑签一次
+
+> 我们自己用的是 Mac，这条路没有从头到尾亲手走过。核对过的：官方编好的包（v16.15.3）是没签名的 arm64 真机包，Bundle ID 是 `com.facebook.WebDriverAgentRunner.xctrunner`，支持 iOS 13 及以上。用 Sideloadly 给 WDA 签名是很常见的做法，下面哪一步对不上，欢迎提 issue 告诉我们。
+
+1. **不用编译，直接拿 WDA**：到 [WebDriverAgent 的 Releases 页](https://github.com/appium/WebDriverAgent/releases)下载 `WebDriverAgentRunner-Runner.zip`，解压得到 `WebDriverAgentRunner-Runner.app`
+2. **打成 .ipa**：新建一个名叫 `Payload` 的文件夹，把 `.app` 放进去，把 `Payload` 文件夹压缩成 zip，再把后缀 `.zip` 改成 `.ipa`
+3. **签名并安装**：打开 [Sideloadly](https://sideloadly.io)（Windows/Mac），iPhone 插线，选这个 .ipa，填你的 Apple ID。用免费 Apple ID 签名，Bundle ID 一般会被改掉，Sideloadly 的 Advanced options 里能看到、也能自己指定。手机上最后装进去的那个就是你的 `WDA_BUNDLE_ID`（插着线跑 `python3 -m pymobiledevice3 apps list` 能查到）
+4. **手机上**：设置 → 通用 → VPN与设备管理 → 信任你的开发者证书。再到 设置 → 隐私与安全性 → 开发者模式 → 打开，重启。开发者模式这个开关要装过一个侧载的 App 才会出现
+5. **iOS 17 及以上，挂载开发者磁盘镜像**：启动 WDA 要用它。有 Mac 的人是 Xcode 悄悄替他们挂的，所以主教程里没提。没有 Xcode 就插着线跑 `python3 -m pymobiledevice3 mounter auto-mount`（pymobiledevice3 在 Windows 上也能跑；它要下载镜像，得联网）。手机一重启镜像就没了，重启后再跑一次
+6. **启动本项目的 MCP 服务器**（VPS 或这台电脑上），调 `wda_start()`。在 VPS 上照上面[「VPS 部署」](#vps-部署方案不需要-mac-一直开着)一节。头一回建隧道，手机要接受这台机器的配对，见上面配对记录那条说明。也可以插着线用 [`go-ios runwda`](https://github.com/danielpaulus/go-ios) 启动
+7. **每 7 天**：用 Sideloadly 重签一次，两分钟
+
+> 免费 Apple ID 的签名 7 天过期。用电脑重签，别用手机上的自签工具，可能让 Apple ID 被限制。
+
+一台电脑都没有、只有手机和 VPS：免费这条路走不通，没有东西能替你签名、安装。剩下的是方案 B，找那种给安装链接、在手机上直接点开装的签名服务。这条我们没试过。
+
+### 方案 B：买签名证书
+
+向签名服务买开发者证书或企业证书。有了有效证书，可以用 [zsign](https://github.com/zhlynn/zsign)（跨平台命令行）或 [Sideloadly](https://sideloadly.io) 重签 `.ipa`，签名能管很久（一般几个月到一年）。
+
+### 方案 C：每年 99 美元的 Apple 开发者账号
+
+有 [Apple 开发者账号](https://developer.apple.com/programs/)，证书管一年，不用每 7 天重签。想做成全自动，可以自己写一个 GitHub Actions 的 workflow，在免费的 macOS runner 上定时编译、签名，把包传到 Releases。本仓库目前没有带这个 workflow。
+
+### 给没有 Mac 的人的工具
+
+- **[go-ios](https://github.com/danielpaulus/go-ios)**：装 App、启动 WDA、转发端口，Linux/Windows/macOS 都能用
+- **[pymobiledevice3](https://github.com/doronz88/pymobiledevice3)**：跟设备通信、挂载开发者磁盘镜像、转发端口，Python，全平台
+- **[Sideloadly](https://sideloadly.io)**：Windows/macOS 上签名、安装 IPA 的图形工具，免费账号重签也用它
+- **[ideviceinstaller](https://github.com/libimobiledevice/ideviceinstaller)**：Linux 上的命令行 IPA 安装器
+
+> **一句话**：从头到尾不需要 Mac。需要一台带 USB 口的电脑给 WDA 签名、安装，头一回一次，之后免费账号每 7 天一次。别的哪个平台都能跑。
 
 ## 致谢
 

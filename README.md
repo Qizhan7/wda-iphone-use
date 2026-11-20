@@ -709,7 +709,7 @@ crontab -e
 
 ## VPS Deployment (no Mac needed after initial setup)
 
-Deploy wda-mcp on a VPS. Mac is only needed once to compile WDA.
+Deploy wda-mcp on a VPS. The VPS does everything except the first install: getting WDA signed and onto the phone takes a computer you can plug the iPhone into. A Mac with Xcode is the path this guide walks; a Windows PC also works, see [Without a Mac](#without-a-mac).
 
 > This section was put together from a setup that community members got working; we have not run the whole path on a VPS ourselves. If you get stuck, paste the full output of `wda_start()` into an issue: it reports separately why the tunnel and the Xcode launch did not work.
 
@@ -746,7 +746,7 @@ WDA_BUNDLE_ID=<Bundle ID> \
 python server.py --http
 ```
 
-First-time WDA compilation still requires a Mac + Xcode. After that, VPS handles everything.
+WDA still has to be signed and installed on the iPhone once, and re-signed every 7 days with a free Apple ID. That takes a computer with a cable: Mac + Xcode as in the main guide, or Windows + Sideloadly as in [Without a Mac](#without-a-mac). You do not have to compile WDA yourself. After that, the VPS handles everything.
 
 ## Architecture
 
@@ -801,25 +801,31 @@ The main setup guide assumes macOS + Xcode. If you don't have a Mac, here's what
 
 ### What needs a Mac
 
-| Step | Mac required? | Alternative |
+Nothing does. What you do need is some computer you can plug the iPhone into, to sign WDA and install it. A Windows PC is enough. A VPS cannot do this part, because it has no USB port to reach the phone.
+
+| Step | Mac required? | Without a Mac |
 |------|:---:|-------------|
-| Build WDA from source | Yes | One-time — borrow a Mac or use GitHub Actions (free macOS runners) |
-| Sign WDA | Yes (Xcode) | Re-sign the .ipa on Windows with [Sideloadly](https://sideloadly.io) |
-| Install WDA on iPhone | No | `ideviceinstaller`, `go-ios install`, or Sideloadly (all cross-platform) |
-| Launch WDA on iPhone | No | [`go-ios runwda`](https://github.com/danielpaulus/go-ios) works on Linux/Windows |
+| Build WDA from source | No | Skip it. Appium publishes a prebuilt real-device build with every release: `WebDriverAgentRunner-Runner.zip` on the [WebDriverAgent releases page](https://github.com/appium/WebDriverAgent/releases). It is unsigned |
+| Sign WDA and install it | No | [Sideloadly](https://sideloadly.io) on Windows, over USB, with your own Apple ID |
+| Launch WDA on iPhone | No | This server's tunnel launch (`wda_start()` on the VPS or PC), or [`go-ios runwda`](https://github.com/danielpaulus/go-ios) on Linux/Windows |
 | Control via HTTP | No | Any platform — it's just REST calls to port 8100 |
 | 7-day certificate renewal | No | Re-sign with Sideloadly, or pay $99/year for a 1-year certificate |
 
 ### Option A: Free — sign with a computer every 7 days
 
-If you already have the WDA `.ipa` file:
+> We use a Mac ourselves and have not walked this path end to end. What we checked: the prebuilt package (v16.15.3) is an unsigned arm64 real-device build, bundle ID `com.facebook.WebDriverAgentRunner.xctrunner`, iOS 13 and later. Signing WDA with Sideloadly is a common setup, but if a step below is off, an issue telling us is welcome.
 
-1. **Sign and install** using [Sideloadly](https://sideloadly.io) (Windows/Mac) — plug in iPhone via USB, select the .ipa, enter your Apple ID, done
-2. **Launch WDA**: use [`go-ios runwda`](https://github.com/danielpaulus/go-ios) via USB
-3. **Run this MCP server**: `python server.py` — works anywhere
-4. **Every 7 days**: re-sign with Sideloadly (~2 minutes)
+1. **Get WDA without compiling**: download `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent releases page](https://github.com/appium/WebDriverAgent/releases) and unzip it. You get `WebDriverAgentRunner-Runner.app`
+2. **Turn it into an .ipa**: create a folder named `Payload`, move the `.app` into it, zip the `Payload` folder, rename the `.zip` to `.ipa`
+3. **Sign and install** with [Sideloadly](https://sideloadly.io) (Windows/Mac): plug in the iPhone via USB, select the .ipa, enter your Apple ID. Signing with a free Apple ID usually changes the Bundle ID; Sideloadly's Advanced options show it and let you set it. Whatever ends up on the phone is your `WDA_BUNDLE_ID` (`python3 -m pymobiledevice3 apps list` with the phone plugged in prints it)
+4. **On the iPhone**: Settings → General → VPN & Device Management → trust your developer certificate. Then Settings → Privacy & Security → Developer Mode → on, and restart. The Developer Mode switch only appears once a sideloaded app is installed
+5. **iOS 17 and later, mount the developer disk image**: launching WDA needs it. Xcode mounts it silently for Mac users, which is why the main guide never mentions it. Without Xcode, run `python3 -m pymobiledevice3 mounter auto-mount` with the phone plugged in (pymobiledevice3 runs on Windows too; it downloads the image, so it needs Internet). The image is gone after the phone restarts; run it again then
+6. **Run this MCP server** on the VPS or the PC and call `wda_start()`. On a VPS, follow [VPS Deployment](#vps-deployment-no-mac-needed-after-initial-setup). The first tunnel needs the phone to accept a pairing from that machine; see the pair record FAQ above. [`go-ios runwda`](https://github.com/danielpaulus/go-ios) over USB is another way to launch
+7. **Every 7 days**: re-sign with Sideloadly (~2 minutes)
 
 > Free Apple ID signing expires every 7 days. Use a computer to re-sign — avoid on-device signing tools as they may trigger Apple ID restrictions.
+
+No computer at all, only a phone and a VPS: the free path does not work, because nothing can sign and install the app. What remains is Option B with a signing service that hands you an install link to open on the phone. We have not tried it.
 
 ### Option B: Buy a signing certificate
 
@@ -835,7 +841,7 @@ With an [Apple Developer account](https://developer.apple.com/programs/), you ge
    - `APPLE_CERTIFICATE_PASSWORD` — certificate password
    - `APPLE_PROVISIONING_PROFILE` — base64-encoded .mobileprovision
    - `DEVICE_UDID` — your iPhone's UDID
-3. The included workflow (`.github/workflows/renew.yml`) runs every 6 days on GitHub's free macOS runner, builds a fresh WDA, and uploads it to Releases
+3. Write a workflow that builds and signs WDA on GitHub's free macOS runner on a schedule (every 6 days, say) and uploads it to Releases. This repo does not ship one yet; earlier versions of this guide said it did
 4. Download and install — or connect your Windows/Linux machine to auto-pull from Releases
 
 ### Key tools for non-Mac users
@@ -845,7 +851,7 @@ With an [Apple Developer account](https://developer.apple.com/programs/), you ge
 - **[Sideloadly](https://sideloadly.io)** — GUI tool for signing and installing IPAs on Windows/macOS. Handles free account re-signing.
 - **[ideviceinstaller](https://github.com/libimobiledevice/ideviceinstaller)** — CLI IPA installer for Linux.
 
-> **Bottom line**: You need a Mac exactly once to compile WDA. After that, everything runs on any platform.
+> **Bottom line**: You never need a Mac. You need a computer with a USB port to sign and install WDA, once and then every 7 days on a free Apple ID. Everything else runs on any platform.
 
 ## Credits
 
