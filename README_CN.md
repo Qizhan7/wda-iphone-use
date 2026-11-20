@@ -1,14 +1,18 @@
 [English README](README.md)
 
-# WDA MCP — 用 AI 远程控制 iPhone
+# wda-iphone-use — 让 AI 用上一台真 iPhone
 
-一个独立的 [MCP](https://modelcontextprotocol.io) 服务器，让 AI 通过网络控制你的 iPhone。基于 Apple 的 [WebDriverAgent](https://github.com/appium/WebDriverAgent)，配合 [Tailscale](https://tailscale.com) 实现从任何地方远程控制——不限于局域网。
+原名 `wda-mcp`，旧链接会自动跳到这里。里头的 MCP 服务器还叫这个名字。
 
-点击按钮、滑动屏幕、截图、输入文字、查看 UI 元素——全部通过自然语言完成。
+把一台真 iPhone 交到 AI 手里，要的东西都在这儿：
+
+- **把 [WebDriverAgent](https://github.com/appium/WebDriverAgent) 装进手机。** 有 Mac 和 Xcode 行，只有一台 Windows 电脑也行。不用越狱。
+- **让手机一直够得着。** 同一个 WiFi 下，或者用 [Tailscale](https://tailscale.com) 从任何地方连，走流量也行。
+- **让 AI 去用它。** 点击、滑动、打字、截图、读屏幕上有什么，通过一个 [MCP](https://modelcontextprotocol.io) 服务器，哪个 MCP 客户端都能接。
 
 ## 先选接入路线
 
-WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、滑动。只读 MCP = 能看不能点。
+服务器需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、滑动。只读 MCP = 能看不能点。
 
 | 你想用 | 推荐入口 | 说明 |
 |------|------|------|
@@ -229,7 +233,7 @@ ChatGPT 不走这个入口，使用 [`CHATGPT_CN.md`](CHATGPT_CN.md) 里的 `ser
   "mcpServers": {
     "wda": {
       "command": "python",
-      "args": ["/path/to/wda-mcp/server.py"],
+      "args": ["/path/to/wda-iphone-use/server.py"],
       "env": {
         "WDA_TAILSCALE_IP": "100.x.x.x",
         "WDA_DEVICE_ID": "你的设备UDID",
@@ -247,8 +251,8 @@ Codex 使用 `~/.codex/config.toml`。如果你的 `python` 不是 3.12，请把
 ```toml
 [mcp_servers.wda]
 command = "python3.12"
-args = ["/path/to/wda-mcp/server.py"]
-cwd = "/path/to/wda-mcp"
+args = ["/path/to/wda-iphone-use/server.py"]
+cwd = "/path/to/wda-iphone-use"
 startup_timeout_sec = 20
 tool_timeout_sec = 300
 ```
@@ -412,7 +416,7 @@ WDA-MCP 可以在 iPhone 使用移动数据时控制 WDA——**不需要 USB，
   ```
   写入一行，换成你的用户名（`whoami`）、`which python3.13` 的结果和仓库的绝对路径：
   ```
-  你的用户名 ALL=(ALL) NOPASSWD: /opt/homebrew/bin/python3.13 /绝对路径/wda-mcp/scripts/create_tunnel.py *
+  你的用户名 ALL=(ALL) NOPASSWD: /opt/homebrew/bin/python3.13 /绝对路径/wda-iphone-use/scripts/create_tunnel.py *
   ```
   只放行这一条命令，不要写成 `NOPASSWD: ALL`。没配的时候 `wda_start()` 会退回 Xcode 启动，并在返回信息里给出替你填好的这一行
 - Python 3.13 + pymobiledevice3
@@ -683,7 +687,7 @@ python3 -c "import json,pathlib; d=json.loads(pathlib.Path('~/.wda-oauth.json').
 
 ```bash
 crontab -e
-0 3 */6 * * cd ~/Desktop/wda-mcp && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
+0 3 */6 * * cd ~/Desktop/wda-iphone-use && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
 ```
 
 ## VPS 部署方案（不需要 Mac 一直开着）
@@ -719,8 +723,8 @@ sudo apt install python3.13 python3.13-venv
 # 或用 pyenv: pyenv install 3.13
 
 # 3. 安装 wda-mcp
-git clone https://github.com/Qizhan7/wda-mcp.git
-cd wda-mcp
+git clone https://github.com/Qizhan7/wda-iphone-use.git
+cd wda-iphone-use
 pip install "mcp[cli]"
 pip install pymobiledevice3
 

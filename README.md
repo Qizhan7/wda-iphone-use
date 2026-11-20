@@ -1,14 +1,18 @@
 [中文版 README](README_CN.md)
 
-# WDA MCP — Remote iPhone Control for AI
+# wda-iphone-use — Let AI Use a Real iPhone
 
-A standalone [MCP](https://modelcontextprotocol.io) server that lets AI agents control a physical iPhone over the network. Built on Apple's [WebDriverAgent](https://github.com/appium/WebDriverAgent) and optionally [Tailscale](https://tailscale.com) for secure remote access from anywhere — not just your LAN.
+Formerly `wda-mcp`; old links redirect here. The MCP server inside keeps that name.
 
-Tap buttons, swipe through apps, take screenshots, type text, and inspect UI elements — all through natural language via any MCP-compatible client.
+Everything it takes to put a real iPhone in an AI's hands:
+
+- **Get [WebDriverAgent](https://github.com/appium/WebDriverAgent) onto the phone.** With a Mac and Xcode, or with only a Windows PC. No jailbreak.
+- **Keep the phone reachable.** On the same WiFi, or from anywhere over [Tailscale](https://tailscale.com), mobile data included.
+- **Let the AI drive it.** Tap, swipe, type, take screenshots and read what is on the screen, through an [MCP](https://modelcontextprotocol.io) server that works with any MCP client.
 
 ## Choose Your Route
 
-WDA-MCP needs full read+write MCP support: viewing the screen plus tapping, typing, and swiping. Read-only MCP = can see but can't control.
+The server needs full read+write MCP support: viewing the screen plus tapping, typing, and swiping. Read-only MCP = can see but can't control.
 
 | You want to use | Entry point | Notes |
 |------|------|------|
@@ -227,7 +231,7 @@ Add to your `.mcp.json`:
   "mcpServers": {
     "wda": {
       "command": "python",
-      "args": ["/path/to/wda-mcp/server.py"],
+      "args": ["/path/to/wda-iphone-use/server.py"],
       "env": {
         "WDA_TAILSCALE_IP": "100.x.x.x",
         "WDA_DEVICE_ID": "your-device-udid",
@@ -245,8 +249,8 @@ Codex reads MCP servers from `~/.codex/config.toml`. If your `python` is not Pyt
 ```toml
 [mcp_servers.wda]
 command = "python3.12"
-args = ["/path/to/wda-mcp/server.py"]
-cwd = "/path/to/wda-mcp"
+args = ["/path/to/wda-iphone-use/server.py"]
+cwd = "/path/to/wda-iphone-use"
 startup_timeout_sec = 20
 tool_timeout_sec = 300
 ```
@@ -410,7 +414,7 @@ Cellular remote start can still fail because of carrier networking, Tailscale re
   ```
   Add one line, with your user name (`whoami`), the output of `which python3.13` and the absolute path of this repo:
   ```
-  yourname ALL=(ALL) NOPASSWD: /opt/homebrew/bin/python3.13 /absolute/path/to/wda-mcp/scripts/create_tunnel.py *
+  yourname ALL=(ALL) NOPASSWD: /opt/homebrew/bin/python3.13 /absolute/path/to/wda-iphone-use/scripts/create_tunnel.py *
   ```
   Allow only this one command, not `NOPASSWD: ALL`. Without it `wda_start()` falls back to the Xcode launch and prints this line already filled in for you
 - Python 3.13 with pymobiledevice3: `brew install python@3.13 && python3.13 -m pip install pymobiledevice3`
@@ -697,7 +701,7 @@ Free Apple Developer certificates expire every 7 days. Set up auto-renewal:
 ```bash
 # Add to crontab (runs every 6 days at 3 AM)
 crontab -e
-0 3 */6 * * cd ~/Desktop/wda-mcp && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
+0 3 */6 * * cd ~/Desktop/wda-iphone-use && bash scripts/renew_wda.sh >> /tmp/wda_renew.log 2>&1
 ```
 
 ## VPS Deployment (no Mac needed after initial setup)
@@ -728,7 +732,7 @@ curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up --advertise-exit-node
 
 # Python 3.13 + wda-mcp
-git clone https://github.com/Qizhan7/wda-mcp.git && cd wda-mcp
+git clone https://github.com/Qizhan7/wda-iphone-use.git && cd wda-iphone-use
 pip install "mcp[cli]" pymobiledevice3
 sudo python3 scripts/patch_pymobiledevice3.py
 
