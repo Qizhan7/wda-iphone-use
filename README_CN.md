@@ -15,8 +15,8 @@ WDA-MCP 需要支持**读+写**的 MCP：能看屏幕，也能点击、输入、
 | **Claude Code / Claude Desktop** | `server.py` stdio | 本地 MCP，最稳。 |
 | **claude.ai 网页聊天** | `server.py --http` + HTTPS tunnel | 免费版可用 1 个自定义 MCP 连接器，适合自然语言控手机。 |
 | **Codex** | `server.py` stdio | 需要把 `wda` 加进 Codex 的 MCP 配置。 |
-| **ChatGPT 网页版 / 手机浏览器网页版** | `server_chatgpt.py` + HTTPS `/mcp` | 先确认你的计划能调用写工具，见[平台兼容性](#平台兼容性)。配置步骤在 [`CHATGPT_CN.md`](CHATGPT_CN.md)。 |
-| **ChatGPT iOS/Android 原生 App** | 不行 | OpenAI 的帮助页写明自定义 MCP 服务器只能在网页版用。 |
+| **ChatGPT 网页版 / 手机浏览器网页版** | `server_chatgpt.py` + HTTPS `/mcp` | 先弄清你的计划能不能调用写工具，见[平台兼容性](#平台兼容性)。配置步骤在 [`CHATGPT_CN.md`](CHATGPT_CN.md)。 |
+| **ChatGPT iOS/Android 原生 App** | 没确认 | OpenAI 的帮助页说自定义 MCP 服务器只能在网页上连接。在网页上加好以后 App 里能不能用，2026 年 4 月之后我们没重测。 |
 
 > Claude 已经跑通的用户不用改配置。ChatGPT 单独走 `server_chatgpt.py`，不要和 Claude 的原路线混在一起。
 
@@ -55,12 +55,12 @@ wda-mcp 要的客户端得会两件事：能加你自己的 MCP 服务器，能�
 
 | 产品 | 接自己的 MCP 服务器 | 写工具 | 我们试过 |
 |------|--------------------|--------|----------|
-| **ChatGPT 网页版** | 远程 HTTPS，从 Plugins → + → Add custom MCP server 添加 | 文档：完整 MCP（含写）给 Business 和 Enterprise/Edu；Pro 只有读取；没提 Plus | 2026-04 用 Plus：读写都通。之后没重测 |
+| **ChatGPT 网页版** | 远程 HTTPS，从 Plugins → + → Add custom MCP server 添加 | 哪些计划有写工具，OpenAI 自己的页面说法不一，见下 | 2026-04 用 Plus：读写都通。之后没重测 |
 | **手机浏览器打开 ChatGPT 网页版** | 同网页版，本质上就是网页 | 同网页版 | — |
 | **ChatGPT iOS / Android App** | 文档原话："Can I connect custom MCP servers on mobile? No - web only." | — | 2026-04：只读工具能加载，写操作被拒。之后没重测 |
 | **Codex CLI / ChatGPT 桌面 App / IDE 扩展** | stdio 和 streamable HTTP | 文档没提限制 | — |
 
-**走 ChatGPT 这条路之前，先确认你的计划能调用写工具。** OpenAI 的帮助页 [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461)（2026 年 10 月底更新）写着："Custom MCP server connections and full MCP support are available for ChatGPT Business and Enterprise/Edu customers on ChatGPT web"，以及 "Pro users can connect custom MCP servers with read/fetch permissions."。它还说现在不用先开 Developer Mode。这比我们 2026 年 4 月见到的要严，那时 Plus 账号开了 Developer Mode 就能调用写工具。我们没有重测。你手里要是有 Plus、Pro 或手机 App 上最近的结果，欢迎提 issue 告诉我们。
+**走 ChatGPT 这条路之前，先弄清你的计划能不能调用写工具。** OpenAI 自己的几个页面眼下说法不一致。[开发者文档](https://developers.openai.com/api/docs/guides/developer-mode)写的是 "ChatGPT supports both read and write tools from your server"，没提哪个计划。OpenAI 的员工 2026-10-01 在论坛说，现在不用开 Developer Mode，"all eligible users can now connect custom MCP servers to ChatGPT"（[帖子](https://community.openai.com/t/developer-mode-missing-from-security-login-on-chatgpt-pro/1402157)），没说哪些计划算 eligible。帮助页 [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461)（2026 年 10 月底更新）写的是 "Full MCP is only available to Business and Enterprise/Edu users, currently. Pro users can connect custom MCP servers with read/fetch permissions."。个人计划的用户两种结果都有人报。我们自己的结果是 2026 年 4 月的，那时 Plus 账号能调用写工具，之后没有重测。最快的验法：把服务器接上，让 ChatGPT 把手机按回主屏幕（`wda_home`）。这一下被拒，你的计划就是只读，ChatGPT 看得见手机、控不了它。两种结果你验出了哪一种，欢迎提 issue 告诉我们计划和日期。
 
 Codex 的出处：[Codex MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
 

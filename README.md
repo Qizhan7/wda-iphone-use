@@ -15,8 +15,8 @@ WDA-MCP needs full read+write MCP support: viewing the screen plus tapping, typi
 | **Claude Code / Claude Desktop** | `server.py` stdio | Local MCP, the most stable path. |
 | **claude.ai web chat** | `server.py --http` + HTTPS tunnel | Good free chat-based control path. |
 | **Codex** | `server.py` stdio | Add `wda` to your Codex MCP config. |
-| **ChatGPT web / mobile browser web** | `server_chatgpt.py` + HTTPS `/mcp` | First check that your plan can call write tools, see [Platform Compatibility](#platform-compatibility). Setup is in [`CHATGPT.md`](CHATGPT.md). |
-| **ChatGPT iOS/Android native app** | No | OpenAI's help page says custom MCP servers are web only. |
+| **ChatGPT web / mobile browser web** | `server_chatgpt.py` + HTTPS `/mcp` | First find out whether your plan can call write tools, see [Platform Compatibility](#platform-compatibility). Setup is in [`CHATGPT.md`](CHATGPT.md). |
+| **ChatGPT iOS/Android native app** | Unconfirmed | OpenAI's help page says custom MCP servers can only be connected on the web. Whether one added there works in the app, we have not re-tested since April 2026. |
 
 > If Claude already works for you, keep that configuration. ChatGPT has its own `server_chatgpt.py` entry point so the two paths don't get mixed together.
 
@@ -55,12 +55,12 @@ Sources: [custom connectors using remote MCP](https://support.claude.com/en/arti
 
 | Product | Your own MCP server | Write tools | We ran it |
 |---------|---------------------|-------------|-----------|
-| **ChatGPT web** | Remote HTTPS, added from Plugins → + → Add custom MCP server | Docs: full MCP, write included, on Business and Enterprise/Edu. Pro gets read/fetch only. Plus is not mentioned | 2026-04 on Plus: read and write both worked. Not re-tested since |
+| **ChatGPT web** | Remote HTTPS, added from Plugins → + → Add custom MCP server | OpenAI's pages disagree on which plans get write tools, see below | 2026-04 on Plus: read and write both worked. Not re-tested since |
 | **ChatGPT in a mobile browser** | Same as web, it is the web app | Same as web | — |
 | **ChatGPT iOS / Android app** | Docs: "Can I connect custom MCP servers on mobile? No - web only." | — | 2026-04: read tools loaded, write calls were rejected. Not re-tested since |
 | **Codex CLI / ChatGPT desktop app / IDE extension** | stdio and streamable HTTP | Docs name no limit | — |
 
-**Before you set up the ChatGPT path, check that your plan can call write tools.** OpenAI's help page [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461) (updated in late October 2026) says "Custom MCP server connections and full MCP support are available for ChatGPT Business and Enterprise/Edu customers on ChatGPT web" and "Pro users can connect custom MCP servers with read/fetch permissions." It also says Developer Mode no longer has to be turned on first. That is stricter than what we saw in April 2026, when a Plus account in Developer Mode could call write tools. We have not re-tested. If you have a recent result on Plus, Pro or the mobile app, tell us in an issue.
+**Before you set up the ChatGPT path, find out whether your plan can call write tools.** OpenAI's own pages do not agree with each other right now. The [developer docs](https://developers.openai.com/api/docs/guides/developer-mode) say "ChatGPT supports both read and write tools from your server" and name no plan. An OpenAI staff member wrote on 2026-10-01 that Developer Mode is no longer needed and that "all eligible users can now connect custom MCP servers to ChatGPT" ([forum thread](https://community.openai.com/t/developer-mode-missing-from-security-login-on-chatgpt-pro/1402157)), without saying which plans are eligible. The help page [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461) (updated in late October 2026) says "Full MCP is only available to Business and Enterprise/Edu users, currently. Pro users can connect custom MCP servers with read/fetch permissions." People on personal plans report both outcomes. Our own result is from April 2026, when a Plus account could call write tools; we have not re-tested. The quick way to know: connect the server, then ask ChatGPT to take the phone to the home screen (`wda_home`). If that call is refused, your plan is read-only and ChatGPT can look at the phone but not control it. If you find out either way, an issue telling us your plan and the date is welcome.
 
 Source for Codex: [Codex MCP docs](https://learn.chatgpt.com/docs/extend/mcp).
 

@@ -1,13 +1,13 @@
 # ChatGPT-Specific Setup
 
-> **Read this first (2026-11-20).** This guide was written in April 2026 and we have not re-walked it since. According to OpenAI's help page [Connecting custom MCP servers in ChatGPT](https://help.openai.com/en/articles/12584461), two things have changed on their side. Custom MCP servers are now added from Plugins → + → Add custom MCP server, without turning on Developer Mode first. And full MCP, write tools included, is listed for Business and Enterprise/Edu only, with Pro limited to read/fetch. wda-mcp needs write tools to tap and type. In April a Plus account could call them. Check what your plan can do before you spend time on the steps below.
+> **Read this first (2026-11-20).** This guide was written in April 2026 and we have not re-walked it since. Two things have changed on OpenAI's side. Custom MCP servers are now added from Plugins → + → Add custom MCP server, and Developer Mode no longer has to be turned on first. And OpenAI's own pages now disagree on which plans can call write tools: the developer docs say read and write tools are both supported, while the help page lists full MCP for Business and Enterprise/Edu only, with Pro limited to read/fetch. wda-mcp needs write tools to tap and type. In April a Plus account could call them. Once the server is connected, ask ChatGPT to call `wda_home`: if it is refused, your plan is read-only. Details and links are in the README under [Platform Compatibility](README.md#platform-compatibility).
 
 This path is separate from the Claude / Codex stdio path. If Claude already works on stdio, keep that configuration — this guide only covers exposing wda-mcp over HTTPS for ChatGPT Developer Mode.
 
 Supported entry points:
 - ChatGPT web: the path this guide walks.
 - `chatgpt.com` in a mobile browser: it is still the web app.
-- ChatGPT iOS/Android native app: no. OpenAI's help page says "Can I connect custom MCP servers on mobile? No - web only." In April 2026 read-only tools loaded there, but tap/type/swipe were rejected.
+- ChatGPT iOS/Android native app: unconfirmed. OpenAI's help page says "Can I connect custom MCP servers on mobile? No - web only." In April 2026 read-only tools loaded there, but tap/type/swipe were rejected. We have not re-tested since.
 
 ## Fast path
 
